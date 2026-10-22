@@ -23,7 +23,7 @@
 | D23 | 22.10.2026 | Demo-Protokoll in Einstellungen, PDF mit DEMO-Wasserzeichen | Vorführung und Test von Unterschrift und PDF ohne Raum-für-Raum-Durchklick. Erkennbar an „Erstellt von“ = Demo (Feld gesperrt), Wasserzeichen, Betreff und Keyword `demo` | Entschieden |
 | D21 | 22.10.2026 | Immer helles Harbour-Theme; Dunkelmodus nur per bewusster Einstellung (später) | System-Dunkelmodus hat die App ungewollt dunkel gefärbt | Entschieden |
 | D22 | 22.10.2026 | Detail wählen bestätigt dieses eine Element als OK (Auswahl = angeschaut); kein Sammel-OK | Ein gesetzter Anstrich oder Belag heißt: dieser eine Punkt wurde angesehen. Andere Punkte bleiben offen. Ein Mangel bleibt ein Mangel. | Entschieden |
-| D24 | 22.10.2026 | App-Icon F7 „Breakout tick“; Quellen in `frontend/assets/brand/` | Weißer Haus-Umriss, Haken in #A9BCD6 durchs Dach, Navy-Verlauf #173560 → #07142B. Ausgeliefert werden die PNG/ICO/SVG in `frontend/public/`; die SVGs in `frontend/assets/brand/` sind nur die Quellen | Entschieden |
+| D24 | 22.10.2026 | App-Icon F7 „Breakout tick“; Quellen in `frontend/assets/brand/`; Start-Hintergrund weiß | Weißer Haus-Umriss, Haken in #A9BCD6 durchs Dach, Navy-Verlauf #173560 → #07142B. Ausgeliefert werden die PNG/ICO/SVG in `frontend/public/`; die SVGs in `frontend/assets/brand/` sind nur die Quellen. Start-Hintergrund weiß (`background_color` `#FFFFFF`), damit die helle App beim Öffnen nicht dunkel aufblitzt | Entschieden |
 
 ## Offen
 
