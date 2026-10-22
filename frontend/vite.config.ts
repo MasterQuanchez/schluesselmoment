@@ -51,6 +51,8 @@ export default defineConfig({
       },
     }),
   ],
+  // CSP font-src 'self' blocks inlined data: fonts (AC12).
+  build: { assetsInlineLimit: 0 },
   preview: { headers: previewHeaders() },
   test: {
     environment: 'node',
