@@ -2,6 +2,13 @@
 
 <!-- Neue Einträge oben. Format: ## TT.MM. · SM-xx · Bahn X · Kurztitel -->
 
+## 23.10. · SM-10 · Bahn A + D · iPhone-Senden und Installationshinweis
+
+Prompt-ID: SM-10
+ACs: Abschluss zweistufig – „PDF vorbereiten“ (Dateiname, Größe, Seitenzahl), „Per E-Mail senden“ ruft `navigator.share` ohne await davor im Klick auf. Empfänger im selben Klick in die Zwischenablage, nicht awaiten. AbortError still. Ohne Share-API Download. Geändertes oder neu versiegeltes Protokoll verwirft die Datei. iOS-Safari ohne Home-Bildschirm-App zeigt die Karte, wegklickbar über `dismissedIosInstallHint` (Default, keine Schemaversion). Android nur „App installieren“, wenn `beforeinstallprompt` kommt. `apple-mobile-web-app-capable` in `index.html`. `features/rooms/*`, `catalog.ts`, `protocol.ts`, `pdf/generate.ts`, `Photos.tsx` nicht angefasst. Im E2E nur der Abschluss: vorbereiten, dann senden.
+Entscheidung: D25.
+Offene Punkte: echtes iPhone nicht geprüft (Playwright bleibt Chromium). Der Prompt brach beim Meta-Tag ab; ergänzt sind `content="yes"`, Statusleiste `default` und Titel „Schlüsselmoment“.
+
 ## 23.10. · SM-14 · Bahn E · Secret-Check
 
 Prompt-ID: SM-14

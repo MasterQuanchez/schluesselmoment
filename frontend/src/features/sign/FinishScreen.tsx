@@ -27,6 +27,33 @@ async function loadPhotoBytes(id: string): Promise<Uint8Array | null> {
   return rec ? new Uint8Array(await rec.blob.arrayBuffer()) : null;
 }
 
+function protocolStamp(p: Protocol): string {
+  return `${p.status}|${p.updatedAt}|${p.seal?.hash ?? ''}`;
+}
+
+function formatBytes(bytes: number): string {
+  const kb = Math.max(1, Math.round(bytes / 1024));
+  return `${kb.toLocaleString('de-DE')} kB`;
+}
+
+function downloadFile(file: File): void {
+  const url = URL.createObjectURL(file);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = file.name;
+  a.rel = 'noopener';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 30_000);
+}
+
+interface PreparedPdf {
+  file: File;
+  name: string;
+  bytes: number;
+  pages: number;
+  stamp: string;
+}
+
 async function photoHashes(p: Protocol): Promise<Record<string, string>> {
   const out: Record<string, string> = {};
   for (const id of referencedPhotoIds(p)) {
@@ -41,9 +68,12 @@ export function FinishScreen({ id }: { id: string }) {
   const [toast, showToast] = useToast();
   const [signing, setSigning] = useState<Signer | null>(null);
   const [busy, setBusy] = useState(false);
+  const [prepared, setPrepared] = useState<PreparedPdf | null>(null);
 
   if (state.status !== 'ready') return <Loading state={state} />;
   const p = state.protocol;
+  const stamp = protocolStamp(p);
+  const readyPdf = prepared?.stamp === stamp ? prepared : null;
   const issues = protocolIssues(p);
   const signers = requiredSigners(p);
 
@@ -75,51 +105,74 @@ export function FinishScreen({ id }: { id: string }) {
     void flush();
   };
 
-  const makePdf = async (mode: 'share' | 'download') => {
+  const buildPdf = async (): Promise<PreparedPdf> => {
+    const here = protocolStamp(p);
+    const { generatePdf, pdfFileName } = await import('@/pdf/generate');
+    const { PDFDocument } = await import('pdf-lib');
+    const bytes = await generatePdf(p, loadPhotoBytes);
+    const doc = await PDFDocument.load(bytes);
+    const name = pdfFileName(p);
+    return {
+      file: new File([bytes as BlobPart], name, { type: 'application/pdf' }),
+      name,
+      bytes: bytes.byteLength,
+      pages: doc.getPageCount(),
+      stamp: here,
+    };
+  };
+
+  const prepare = async () => {
     setBusy(true);
     try {
-      // pdf-lib (~500 kB) erst bei Bedarf laden – Start der App bleibt schnell
-      const { generatePdf, pdfFileName } = await import('@/pdf/generate');
-      const bytes = await generatePdf(p, loadPhotoBytes);
-      const name = pdfFileName(p);
-      const file = new File([bytes as BlobPart], name, { type: 'application/pdf' });
-      if (mode === 'share' && navigator.canShare?.({ files: [file] })) {
-        // Das Teilen-Menü kann keine Empfänger vorbelegen → Adressen in die Zwischenablage,
-        // im Mail-Programm einfach ins „An“-Feld einfügen.
-        const to = mailRecipients(p, APP_CONFIG.ccEmail);
-        if (to.length) {
-          try {
-            await navigator.clipboard.writeText(to.join(', '));
-            showToast(`Empfänger kopiert: ${to.join(', ')} – im Mail-Programm ins „An“-Feld einfügen.`);
-          } catch {
-            /* Zwischenablage nicht erlaubt – Adressen stehen im Text */
-          }
-        }
-        try {
-          await navigator.share({
-            files: [file],
-            title: name,
-            text: `${name}${to.length ? `\nAn: ${to.join(', ')}` : ''}`,
-          });
-          markShared();
-          return;
-        } catch (e) {
-          if (e instanceof DOMException && e.name === 'AbortError') return;
-        }
-      }
-      const url = URL.createObjectURL(file);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = name;
-      a.rel = 'noopener';
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 30_000);
-      markShared();
+      setPrepared(await buildPdf());
     } catch (e) {
       showToast(e instanceof Error ? `PDF-Fehler: ${e.message}` : 'PDF-Fehler');
     } finally {
       setBusy(false);
     }
+  };
+
+  /** Entwurf ohne Teilen-Menü. */
+  const downloadFresh = async () => {
+    setBusy(true);
+    try {
+      const pdf = readyPdf ?? (await buildPdf());
+      downloadFile(pdf.file);
+      if (p.status === 'signed') markShared();
+    } catch (e) {
+      showToast(e instanceof Error ? `PDF-Fehler: ${e.message}` : 'PDF-Fehler');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /**
+   * Teilen muss im Klick selbst starten. Kein await davor, sonst blockt iOS das Menü.
+   * Empfänger landen im selben Klick in der Zwischenablage, ebenfalls ohne await.
+   */
+  const sendMail = () => {
+    if (!readyPdf) return;
+    const to = mailRecipients(p, APP_CONFIG.ccEmail);
+    const copied = to.length ? navigator.clipboard?.writeText(to.join(', ')) : undefined;
+    if (copied) {
+      void copied.then(
+        () => showToast(`Empfänger kopiert: ${to.join(', ')} – im Mail-Programm ins „An“-Feld einfügen.`),
+        () => {},
+      );
+    }
+    const text = `${readyPdf.name}${to.length ? `\nAn: ${to.join(', ')}` : ''}`;
+    if (navigator.canShare?.({ files: [readyPdf.file] })) {
+      void navigator
+        .share({ files: [readyPdf.file], title: readyPdf.name, text })
+        .then(() => markShared())
+        .catch((e: unknown) => {
+          if (e instanceof DOMException && e.name === 'AbortError') return;
+          showToast(e instanceof Error ? `Teilen fehlgeschlagen: ${e.message}` : 'Teilen fehlgeschlagen');
+        });
+      return;
+    }
+    downloadFile(readyPdf.file);
+    markShared();
   };
 
   return (
@@ -175,7 +228,7 @@ export function FinishScreen({ id }: { id: string }) {
               type="button"
               className="btn btn--block"
               disabled={busy}
-              onClick={() => void makePdf('download')}
+              onClick={() => void downloadFresh()}
             >
               <Icon name="file" /> Entwurf als PDF ansehen
             </button>
@@ -268,19 +321,31 @@ export function FinishScreen({ id }: { id: string }) {
                 gelöscht. Bitte das PDF selbst ablegen (Kopie an sich selbst).
               </span>
             </div>
+            {readyPdf ? (
+              <div className="card small stack">
+                <b>{readyPdf.name}</b>
+                <span>
+                  {formatBytes(readyPdf.bytes)} · {readyPdf.pages} {readyPdf.pages === 1 ? 'Seite' : 'Seiten'}
+                </span>
+              </div>
+            ) : (
+              <button type="button" className="btn btn--block" disabled={busy} onClick={() => void prepare()}>
+                <Icon name="file" /> {busy ? 'Erstellt …' : 'PDF vorbereiten'}
+              </button>
+            )}
             <button
               type="button"
               className="btn btn--primary btn--block"
-              disabled={busy}
-              onClick={() => void makePdf('share')}
+              disabled={!readyPdf || busy}
+              onClick={sendMail}
             >
-              <Icon name="share" /> PDF per E-Mail senden
+              <Icon name="share" /> Per E-Mail senden
             </button>
             <button
               type="button"
               className="btn btn--block"
               disabled={busy}
-              onClick={() => void makePdf('download')}
+              onClick={() => void downloadFresh()}
             >
               <Icon name="download" /> PDF speichern
             </button>

@@ -5,13 +5,38 @@ import { createProtocol, deletionDate } from '@/domain/protocol';
 import type { Protocol, ProtocolType } from '@/domain/schema';
 import { href, navigate } from '@/router';
 import { deleteProtocol, getSettings, listProtocols, saveProtocol } from '@/storage/db';
+import { useSettings } from '@/storage/useSettings';
 import { Icon } from '@/ui/Icon';
 import { TopBar, useToast } from '@/ui/kit';
+import { showIosInstallHint } from './installHint';
+
+const IOS_HINT =
+  'Zum Home-Bildschirm hinzufügen: Teilen ⬆ → Zum Home-Bildschirm. Nur so funktioniert die App offline und Ihre Protokolle bleiben gespeichert.';
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+}
 
 export function HomeScreen() {
   const [items, setItems] = useState<Protocol[] | null>(null);
   const [choose, setChoose] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const { settings, update } = useSettings();
   const [toast, showToast] = useToast();
+
+  useEffect(() => {
+    const onPrompt = (event: Event) => {
+      event.preventDefault();
+      setInstallPrompt(event as BeforeInstallPromptEvent);
+    };
+    const onInstalled = () => setInstallPrompt(null);
+    window.addEventListener('beforeinstallprompt', onPrompt);
+    window.addEventListener('appinstalled', onInstalled);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onPrompt);
+      window.removeEventListener('appinstalled', onInstalled);
+    };
+  }, []);
 
   const reload = () =>
     void listProtocols()
@@ -54,6 +79,33 @@ export function HomeScreen() {
           <h1 className="page-title">Protokolle</h1>
           <p className="page-sub">Alle Daten bleiben auf diesem Gerät, bis Sie das PDF teilen.</p>
         </div>
+
+        {settings &&
+        showIosInstallHint({
+          userAgent: navigator.userAgent,
+          platform: navigator.platform,
+          maxTouchPoints: navigator.maxTouchPoints,
+          navigatorStandalone: (navigator as Navigator & { standalone?: boolean }).standalone === true,
+          displayModeStandalone: window.matchMedia('(display-mode: standalone)').matches,
+          dismissed: settings.dismissedIosInstallHint,
+        }) ? (
+          <div className="card row">
+            <p className="grow">{IOS_HINT}</p>
+            <button
+              type="button"
+              className="btn btn--ghost"
+              aria-label="Hinweis schließen"
+              onClick={() => update((s) => ({ ...s, dismissedIosInstallHint: true }))}
+            >
+              <Icon name="x" />
+            </button>
+          </div>
+        ) : null}
+        {installPrompt ? (
+          <button type="button" className="btn btn--ghost" onClick={() => void installPrompt.prompt()}>
+            App installieren
+          </button>
+        ) : null}
 
         {choose ? (
           <div className="card stack celebrate">

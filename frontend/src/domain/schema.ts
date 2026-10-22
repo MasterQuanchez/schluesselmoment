@@ -152,5 +152,7 @@ export const Settings = z.object({
   id: z.literal('device'),
   customPhrases: z.array(z.string().min(1).max(80)).max(100).default([]),
   inspectorName: z.string().max(200).default(''),
+  /** iOS-Hinweis „Zum Home-Bildschirm“. Default, damit alte Geräte ohne Schemaversion lesbar bleiben. */
+  dismissedIosInstallHint: z.boolean().default(false),
 });
 export type Settings = z.infer<typeof Settings>;

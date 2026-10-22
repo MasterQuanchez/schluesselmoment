@@ -187,9 +187,11 @@ await shot(page, '14-unterschriften');
 await page.getByRole('button', { name: /versiegeln/ }).click();
 await page.getByText('Protokoll abgeschlossen und versiegelt').waitFor();
 await shot(page, '15-versiegelt');
+await page.getByRole('button', { name: 'PDF vorbereiten' }).click();
+await page.getByText(/\d+ Seiten/).waitFor();
 const [d1] = await Promise.all([
   page.waitForEvent('download'),
-  page.getByRole('button', { name: 'PDF speichern' }).click(),
+  page.getByRole('button', { name: 'Per E-Mail senden' }).click(),
 ]);
 await d1.saveAs(`${SP}/final.pdf`);
 console.log('PDF:', d1.suggestedFilename());
