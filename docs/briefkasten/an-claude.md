@@ -2,6 +2,14 @@
 
 <!-- Neue Einträge oben. Format: ## TT.MM. · SM-xx · Bahn X · Kurztitel -->
 
+## 23.10. · SM-13a · Bahn B · Icon in der App
+
+Prompt-ID: SM-13a (Schritte 1–3; Schritt 0 ist `c1a75cb`)
+ACs: Wortmarke nur in der Start-Kopfzeile: `/favicon.svg` 28 px, daneben „Schlüsselmoment“ in `--fw-bold` und `--c-primary`, „Mehr“ bleibt rechts. Leerzustand: Icon 72 px, „Noch keine Protokolle.“, Claim „Übergaben, die einfach stimmen.“ in text-medium, danach der Hinweis auf „+“. Einstellungen, Abschnitt Datenschutz: Icon 40 px neben der Version. Arbeits-Screens ohne Icon. Kein Icon im PDF.
+Ergebnis: test ✓ (23) · lint ✓ (Exit 0, 2 Infos zum Biome-Schema). Basisdaten ohne Marke. Version in den Einstellungen 40 px. Screenshots: `frontend/test-results/sm13/` (gitignored), Startseite leer und mit Protokoll „Musterstraße 1“.
+Entscheidung: D24 (Start-Hintergrund weiß schon in `c1a75cb`).
+Offene Punkte: Splash bleibt SM-09. Firmenlogo im PDF bleibt O2.
+
 ## 22.10. · SM-12 · Bahn H · Demo-Protokoll
 
 Prompt-ID: SM-12

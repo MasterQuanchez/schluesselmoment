@@ -37,7 +37,12 @@ export function HomeScreen() {
   return (
     <>
       <TopBar
-        title="Schlüsselmoment"
+        title={
+          <span className="brand-lockup">
+            <img className="brand-mark brand-mark--bar" src="/favicon.svg" alt="" />
+            <span className="brand-word">Schlüsselmoment</span>
+          </span>
+        }
         action={
           <a className="btn btn--ghost" href={href({ name: 'settings' })}>
             Mehr
@@ -67,10 +72,13 @@ export function HomeScreen() {
         {items === null ? (
           <div className="empty">Lädt …</div>
         ) : items.length === 0 ? (
-          <div className="empty">
-            Noch keine Protokolle.
-            <br />
-            Mit <b>+</b> ein neues starten.
+          <div className="empty stack brand-empty">
+            <img className="brand-mark brand-mark--empty" src="/favicon.svg" alt="" />
+            <span>Noch keine Protokolle.</span>
+            <span className="brand-claim">Übergaben, die einfach stimmen.</span>
+            <span>
+              Mit <b>+</b> ein neues starten.
+            </span>
           </div>
         ) : (
           <ul className="list">

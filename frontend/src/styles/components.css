@@ -620,6 +620,39 @@ details.more > summary::-webkit-details-marker {
   padding: var(--sp-6) var(--sp-4);
   color: var(--c-text-muted);
 }
+.brand-empty {
+  align-items: center;
+}
+.brand-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  max-width: 100%;
+}
+.brand-word {
+  font-weight: var(--fw-bold);
+  color: var(--c-primary);
+}
+.brand-claim {
+  color: var(--theme-current-color-text-medium);
+}
+.brand-mark {
+  display: block;
+  flex: none;
+  object-fit: contain;
+}
+.brand-mark--bar {
+  width: 28px;
+  height: 28px;
+}
+.brand-mark--empty {
+  width: 72px;
+  height: 72px;
+}
+.brand-mark--version {
+  width: 40px;
+  height: 40px;
+}
 .celebrate {
   animation: pop 500ms ease-out;
 }

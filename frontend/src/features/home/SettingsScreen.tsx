@@ -151,7 +151,10 @@ export function SettingsScreen() {
             Versendete Protokolle werden {APP_CONFIG.retentionDays} Tage nach dem Versand automatisch
             gelöscht.
           </span>
-          <span className="muted">Version {__APP_VERSION__}</span>
+          <span className="row muted">
+            <img className="brand-mark brand-mark--version" src="/favicon.svg" alt="" />
+            Version {__APP_VERSION__}
+          </span>
         </div>
       </main>
     </>

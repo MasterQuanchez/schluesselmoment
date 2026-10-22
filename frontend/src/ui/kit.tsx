@@ -9,7 +9,7 @@ export function TopBar({
   action,
   children,
 }: {
-  title: string;
+  title: ReactNode;
   back?: Route;
   action?: ReactNode;
   children?: ReactNode;
