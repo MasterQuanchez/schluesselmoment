@@ -10,7 +10,7 @@ export interface InstallHintEnv {
   dismissed: boolean;
 }
 
-function isIosDevice(env: Pick<InstallHintEnv, 'userAgent' | 'platform' | 'maxTouchPoints'>): boolean {
+export function isIosDevice(env: Pick<InstallHintEnv, 'userAgent' | 'platform' | 'maxTouchPoints'>): boolean {
   if (/iPad|iPhone|iPod/.test(env.userAgent)) return true;
   // iPadOS meldet sich als Mac, aber mit Touch
   return env.platform === 'MacIntel' && env.maxTouchPoints > 1;

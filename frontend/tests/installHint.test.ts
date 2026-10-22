@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Settings } from '@/domain/schema';
-import { showIosInstallHint } from '@/features/home/installHint';
+import { isIosDevice, showIosInstallHint } from '@/features/home/installHint';
 
 const iphone =
   'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
@@ -16,6 +16,7 @@ describe('iOS-Installationshinweis', () => {
   };
 
   it('zeigt die Karte nur in iOS-Safari, solange die App nicht installiert ist', () => {
+    expect(isIosDevice(base)).toBe(true);
     expect(showIosInstallHint(base)).toBe(true);
     expect(showIosInstallHint({ ...base, navigatorStandalone: true })).toBe(false);
     expect(showIosInstallHint({ ...base, displayModeStandalone: true })).toBe(false);

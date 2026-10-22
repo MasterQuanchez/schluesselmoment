@@ -7,9 +7,46 @@ import { deletePhoto, getPhoto, putPhoto } from './db';
  * Das Neu-Kodieren entfernt EXIF-Daten (u. a. GPS-Position) – Datenschutz.
  */
 export async function storePhoto(file: Blob, protocolId: string): Promise<string> {
-  if (!file.type.startsWith('image/')) throw new Error('Nur Bilder erlaubt.');
+  const unreadable =
+    'Dieses Bildformat kann nicht gelesen werden. Bitte direkt mit der Kamera fotografieren.';
+  if (file.type && !file.type.startsWith('image/')) throw new Error('Nur Bilder erlaubt.');
   if (file.size > 40 * 1024 * 1024) throw new Error('Bild ist zu groß (max. 40 MB).');
-  const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+
+  const openBitmap = async (): Promise<ImageBitmap> => {
+    try {
+      return await createImageBitmap(file, { imageOrientation: 'from-image' });
+    } catch {
+      try {
+        return await createImageBitmap(file);
+      } catch {
+        let url = '';
+        try {
+          url = URL.createObjectURL(file);
+          const img = new Image();
+          img.src = url;
+          await img.decode();
+          const raw = document.createElement('canvas');
+          raw.width = img.naturalWidth;
+          raw.height = img.naturalHeight;
+          const rawCtx = raw.getContext('2d');
+          if (!rawCtx || raw.width < 1 || raw.height < 1) throw new Error(unreadable);
+          rawCtx.drawImage(img, 0, 0);
+          return await createImageBitmap(raw);
+        } catch (e) {
+          if (e instanceof Error && e.message === unreadable) throw e;
+          throw new Error(unreadable);
+        } finally {
+          if (url) URL.revokeObjectURL(url);
+        }
+      }
+    }
+  };
+
+  const bmp = await openBitmap();
+  if (bmp.width < 1 || bmp.height < 1) {
+    bmp.close();
+    throw new Error(unreadable);
+  }
   const scale = Math.min(1, RULES.maxPhotoEdgePx / Math.max(bmp.width, bmp.height));
   const w = Math.round(bmp.width * scale);
   const h = Math.round(bmp.height * scale);
@@ -17,7 +54,10 @@ export async function storePhoto(file: Blob, protocolId: string): Promise<string
   canvas.width = w;
   canvas.height = h;
   const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('Canvas nicht verfügbar');
+  if (!ctx) {
+    bmp.close();
+    throw new Error('Canvas nicht verfügbar');
+  }
   ctx.drawImage(bmp, 0, 0, w, h);
   bmp.close();
   const blob = await new Promise<Blob>((resolve, reject) =>

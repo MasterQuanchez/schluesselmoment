@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { APP_CONFIG } from '@/config';
-import { PHRASES } from '@/domain/catalog';
+import { CONDITION_PHRASES, DEFECT_PHRASES } from '@/domain/catalog';
 import { createDemoProtocol } from '@/domain/demo';
 import { completeRoom, updateDefect } from '@/domain/protocol';
 import { navigate } from '@/router';
@@ -10,13 +10,39 @@ import { useSettings } from '@/storage/useSettings';
 import { Icon } from '@/ui/Icon';
 import { Field, TopBar } from '@/ui/kit';
 import { createDemoPhoto } from './demoPhoto';
+import { isIosDevice } from './installHint';
 
 export function SettingsScreen() {
   const { settings, update } = useSettings();
   const [phrase, setPhrase] = useState('');
   const [busy, setBusy] = useState(false);
   const [demoError, setDemoError] = useState('');
+  const [persisted, setPersisted] = useState<boolean | null>(null);
+  const standardPhrases = [...new Set([...CONDITION_PHRASES, ...Object.values(DEFECT_PHRASES).flat()])];
+  useEffect(() => {
+    let alive = true;
+    const read = navigator.storage?.persisted?.();
+    if (!read) {
+      setPersisted(false);
+      return;
+    }
+    void read
+      .then((value) => {
+        if (alive) setPersisted(value);
+      })
+      .catch(() => {
+        if (alive) setPersisted(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
   if (!settings) return <div className="empty">Lädt …</div>;
+  const onIos = isIosDevice({
+    userAgent: navigator.userAgent,
+    platform: navigator.platform,
+    maxTouchPoints: navigator.maxTouchPoints,
+  });
 
   const createDemo = async () => {
     setBusy(true);
@@ -110,7 +136,7 @@ export function SettingsScreen() {
 
         <details className="more">
           <summary>
-            <Icon name="chevronDown" /> Standardbegriffe ansehen ({Object.values(PHRASES).flat().length})
+            <Icon name="chevronDown" /> Standardbegriffe ansehen ({standardPhrases.length})
           </summary>
           <p className="hint">
             Änderungen an der Standardliste kommen mit dem nächsten App-Update auf alle Geräte.
@@ -151,6 +177,12 @@ export function SettingsScreen() {
             Versendete Protokolle werden {APP_CONFIG.retentionDays} Tage nach dem Versand automatisch
             gelöscht.
           </span>
+          <span>Speicher dauerhaft: {persisted === null ? '…' : persisted ? 'ja' : 'nein'}</span>
+          {persisted === false && onIos ? (
+            <span className="hint">
+              Zum Home-Bildschirm hinzufügen, damit Protokolle sicher gespeichert bleiben.
+            </span>
+          ) : null}
           <span className="row muted">
             <img className="brand-mark brand-mark--version" src="/favicon.svg" alt="" />
             Version {__APP_VERSION__}

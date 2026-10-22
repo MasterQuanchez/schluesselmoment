@@ -189,6 +189,7 @@ await page.getByText('Protokoll abgeschlossen und versiegelt').waitFor();
 await shot(page, '15-versiegelt');
 await page.getByRole('button', { name: 'PDF vorbereiten' }).click();
 await page.getByText(/\d+ Seiten/).waitFor();
+await shot(page, '15b-pdf-vorschau');
 const [d1] = await Promise.all([
   page.waitForEvent('download'),
   page.getByRole('button', { name: 'Per E-Mail senden' }).click(),
@@ -208,5 +209,10 @@ await page.reload();
 console.log('Home:', (await page.locator('.list-item').first().textContent()).replace(/\s+/g, ' '));
 await page.getByText('Musterstraße 1').waitFor();
 await shot(page, '16-home');
+const iosCard = page.getByText('Zum Home-Bildschirm hinzufügen');
+if (await iosCard.count()) {
+  await iosCard.scrollIntoViewIfNeeded();
+  await shot(page, '17-ios-hinweis');
+}
 console.log('Fehler:', errors.length ? errors : 'keine');
 await browser.close();

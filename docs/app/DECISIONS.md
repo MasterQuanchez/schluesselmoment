@@ -26,6 +26,9 @@
 | D24 | 22.10.2026 | App-Icon F7 „Breakout tick“; Quellen in `frontend/assets/brand/`; Start-Hintergrund weiß | Weißer Haus-Umriss, Haken in #A9BCD6 durchs Dach, Navy-Verlauf #173560 → #07142B. Ausgeliefert werden die PNG/ICO/SVG in `frontend/public/`; die SVGs in `frontend/assets/brand/` sind nur die Quellen. Start-Hintergrund weiß (`background_color` `#FFFFFF`), damit die helle App beim Öffnen nicht dunkel aufblitzt | Entschieden |
 | D25 | 23.10.2026 | iPhone: PDF erst vorbereiten, Senden ohne await im Klick; Installationshinweis wegklickbar in den Geräte-Einstellungen | iOS öffnet das Teilen-Menü nur, wenn `navigator.share` direkt im Klick startet. Der Hinweis gilt nur für nicht installiertes iOS-Safari. Neues Settings-Feld hat einen Default, deshalb keine Schemaversion | Entschieden |
 
+| D29 | 23.10.2026 | Senden zweistufig wegen Safari-Nutzeraktion | iOS Safari startet das Teilen-Menü nur direkt in der Nutzeraktion. Deshalb erst „PDF vorbereiten“, dann „Per E-Mail senden“ ohne await davor im Klick. | Entschieden |
+| D30 | 23.10.2026 | Installationshinweis iOS / Android-Install-Angebot | Nicht installiertes iOS-Safari bekommt einen wegklickbaren Hinweis zum Home-Bildschirm. Android zeigt „App installieren“ nur, wenn der Browser `beforeinstallprompt` schickt. | Entschieden |
+
 ## Offen
 
 | # | Frage | Wer |
