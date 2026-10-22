@@ -24,7 +24,8 @@ function Thumb({ id, onRemove, disabled }: { id: string; onRemove: () => void; d
 }
 
 /**
- * Foto-Leiste: Kamera direkt öffnen (capture), mehrere Bilder möglich.
+ * Foto-Leiste. `pills`: Kamera und Galerie als große Knöpfe.
+ * `tile`: eine Kachel, wie bei den Zählern.
  * Fotos werden sofort verkleinert und lokal gespeichert; das Protokoll speichert nur IDs.
  */
 export function PhotoStrip({
@@ -33,12 +34,14 @@ export function PhotoStrip({
   onChange,
   onError,
   disabled,
+  variant = 'tile',
 }: {
   protocolId: string;
   ids: string[];
   onChange: (ids: string[]) => void;
   onError: (msg: string) => void;
   disabled?: boolean;
+  variant?: 'tile' | 'pills';
 }) {
   const [busy, setBusy] = useState(false);
   const add = async (files: FileList | null) => {
@@ -54,19 +57,58 @@ export function PhotoStrip({
       setBusy(false);
     }
   };
+  const onFiles = (list: FileList | null) => {
+    void add(list);
+  };
+  const thumbs = ids.map((id) => (
+    <Thumb
+      key={id}
+      id={id}
+      disabled={disabled}
+      onRemove={() => {
+        onChange(ids.filter((x) => x !== id));
+        void removePhoto(id);
+      }}
+    />
+  ));
+  if (variant === 'pills') {
+    return (
+      <div className="stack">
+        {disabled ? null : (
+          <div className="stack">
+            <label className="btn btn--primary btn--block btn--file">
+              <Icon name="camera" size={20} /> {busy ? '…' : 'Foto aufnehmen'}
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={(e) => {
+                  onFiles(e.currentTarget.files);
+                  e.currentTarget.value = '';
+                }}
+              />
+            </label>
+            <label className="btn btn--block btn--file">
+              Aus Galerie
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={(e) => {
+                  onFiles(e.currentTarget.files);
+                  e.currentTarget.value = '';
+                }}
+              />
+            </label>
+          </div>
+        )}
+        {ids.length ? <div className="thumbs">{thumbs}</div> : null}
+      </div>
+    );
+  }
   return (
     <div className="thumbs">
-      {ids.map((id) => (
-        <Thumb
-          key={id}
-          id={id}
-          disabled={disabled}
-          onRemove={() => {
-            onChange(ids.filter((x) => x !== id));
-            void removePhoto(id);
-          }}
-        />
-      ))}
+      {thumbs}
       {disabled ? null : (
         <label className="thumb thumb--add" aria-label="Foto aufnehmen">
           {busy ? '…' : <Icon name="camera" size={26} />}
@@ -76,7 +118,7 @@ export function PhotoStrip({
             capture="environment"
             multiple
             onChange={(e) => {
-              void add(e.currentTarget.files);
+              onFiles(e.currentTarget.files);
               e.currentTarget.value = '';
             }}
           />

@@ -2,7 +2,14 @@
  * Reine Fachlogik (keine UI, kein Speicher). Jede Funktion gibt ein NEUES Objekt zurück.
  * Alles hier ist mit Vitest abgedeckt (tests/protocol.test.ts).
  */
-import { CHECKS, PHRASES, ROOM_TEMPLATES, type RoomTemplate, RULES } from './catalog';
+import {
+  CHECKS,
+  CONDITION_PHRASES,
+  DEFECT_PHRASES,
+  ROOM_TEMPLATES,
+  type RoomTemplate,
+  RULES,
+} from './catalog';
 import {
   type CheckState,
   type Defect,
@@ -198,15 +205,14 @@ export function appendPhrase(text: string, phrase: string): string {
   return `${t}${sep}${phrase}`;
 }
 
-/** Standardbegriffe (zentral im Katalog, kommen mit jedem App-Update) + eigene Begriffe dieses Geräts. */
-export function phrasesFor(room: Room, custom: readonly string[] = []): string[] {
-  const t = getTemplate(room);
-  const all = [
-    ...(PHRASES.general ?? []),
-    ...(t.phraseGroups ?? []).flatMap((g) => PHRASES[g] ?? []),
-    ...custom,
-  ];
-  return [...new Set(all)];
+/** Zustandsbegriffe für die Raum-Notiz. Eigene Begriffe gehören zum Mangel, nicht hierher. */
+export function conditionPhrases(): readonly string[] {
+  return CONDITION_PHRASES;
+}
+
+/** Mangel-Vorschläge: dieses Element, dann allgemeine, dann eigene Begriffe des Geräts. */
+export function defectPhrases(checkId: string, custom: readonly string[] = []): string[] {
+  return [...new Set([...(DEFECT_PHRASES[checkId] ?? []), ...(DEFECT_PHRASES.general ?? []), ...custom])];
 }
 
 // ---------- Vollständigkeit („nichts vergessen“) ----------
@@ -217,32 +223,61 @@ export interface Issue {
   message: string;
 }
 
-export function roomIssues(room: Room): Issue[] {
-  const issues: Issue[] = [];
+export interface RoomIssue {
+  checkId: string;
+  kind: 'open' | 'missingDescription' | 'missingPhotos';
+  missingCount: number;
+}
+
+/** Offene Punkte und unvollständige Mängel. Beim Mangel steht das fehlende Foto vor der Beschreibung. */
+export function roomIssues(room: Room): RoomIssue[] {
+  const issues: RoomIssue[] = [];
   for (const [checkId, state] of Object.entries(room.checks)) {
-    const label = CHECKS[checkId]?.label ?? checkId;
-    if (state === 'open') issues.push({ roomId: room.id, checkId, message: `${label}: noch nicht geprüft` });
+    if (state === 'open') issues.push({ checkId, kind: 'open', missingCount: 0 });
     if (state === 'defect') {
       const d = room.defects[checkId];
+      const missing = RULES.minPhotosPerDefect - (d?.photoIds.length ?? 0);
+      if (missing > 0) issues.push({ checkId, kind: 'missingPhotos', missingCount: missing });
       if (RULES.defectNeedsDescription && !d?.description.trim()) {
-        issues.push({ roomId: room.id, checkId, message: `${label}: Mangel beschreiben` });
-      }
-      const n = d?.photoIds.length ?? 0;
-      if (n < RULES.minPhotosPerDefect) {
-        issues.push({
-          roomId: room.id,
-          checkId,
-          message: `${label}: ${RULES.minPhotosPerDefect - n} Foto(s) fehlen`,
-        });
+        issues.push({ checkId, kind: 'missingDescription', missingCount: 0 });
       }
     }
   }
   return issues;
 }
 
+/** Klartext mit Element und Grund. Die Foto-Zahl kommt aus dem Issue, nicht aus einer festen 2. */
+export function issueLabel(issue: RoomIssue): string {
+  const name = CHECKS[issue.checkId]?.label ?? issue.checkId;
+  if (issue.kind === 'open') return `${name}: noch nicht geprüft`;
+  if (issue.kind === 'missingDescription') return `${name}: Beschreibung fehlt`;
+  return issue.missingCount === 1 ? `${name}: 1 Foto fehlt` : `${name}: ${issue.missingCount} Fotos fehlen`;
+}
+
+export function photoCountLabel(count: number, min: number = RULES.minPhotosPerDefect): string {
+  return `Foto (${count}/${min})`;
+}
+
+/** Statuszeile im Sheet. `min` bleibt die Regel, damit die Fachseite die Zahl ändern kann. */
+export function photoStatusLabel(count: number, min: number = RULES.minPhotosPerDefect): string {
+  if (count >= min) return count === 1 ? '✓ 1 Foto' : `✓ ${count} Fotos`;
+  const missing = min - count;
+  return missing === 1 ? 'Noch 1 Foto nötig' : `Noch ${missing} Fotos nötig`;
+}
+
+export function sheetCloseLabel(issue: RoomIssue): string {
+  if (issue.kind === 'missingPhotos') {
+    return issue.missingCount === 1
+      ? 'Schließen – 1 Foto fehlt noch'
+      : `Schließen – ${issue.missingCount} Fotos fehlen noch`;
+  }
+  if (issue.kind === 'missingDescription') return 'Schließen – Beschreibung fehlt noch';
+  return 'Schließen';
+}
+
 export function completeRoom(room: Room, now = new Date()): DecisionResult {
   const issues = roomIssues(room);
-  if (issues.length) return { ok: false, reason: issues.map((i) => i.message).join(' · ') };
+  if (issues.length) return { ok: false, reason: issues.map(issueLabel).join(' · ') };
   return { ok: true, room: { ...room, completedAt: now.toISOString() } };
 }
 

@@ -1,7 +1,7 @@
 /**
  * PDF-Erzeugung auf dem Gerät (pdf-lib, echtes Text-PDF statt Screenshot).
  * Kein Netz, keine Server: personenbezogene Daten verlassen das Handy erst beim Teilen.
- * Reihenfolge an das Word-Protokoll (2021) angelehnt; Fotos im Anhang mit Abbildungsnummern.
+ * Reihenfolge an das Word-Protokoll (2021) angelehnt. Fotos stehen beim Mangel bzw. beim Zähler.
  */
 import { degrees, PDFDocument, type PDFFont, type PDFImage, type PDFPage, rgb, StandardFonts } from 'pdf-lib';
 import { APP_CONFIG } from '@/config';
@@ -233,16 +233,59 @@ export async function generatePdf(p: Protocol, loadPhoto: PhotoLoader): Promise<
   }
 
   // ---------- Räume ----------
-  const figures: Array<{ id: string; caption: string }> = [];
-  const figNo = (id: string, caption: string) => {
-    figures.push({ id, caption });
-    return figures.length;
+  let figCount = 0;
+  const photoGap = 12;
+  const colW = (width - photoGap) / 2;
+  const maxPhotoH = 160;
+
+  /** Zwei Fotos nebeneinander. Die Zeile beginnt nur, wenn sie vollständig auf die Seite passt. */
+  const drawFigs = async (ids: string[], caption: string) => {
+    for (let i = 0; i < ids.length; i += 2) {
+      const slice = ids.slice(i, i + 2);
+      const imgs: Array<PDFImage | null> = [];
+      for (const id of slice) {
+        const bytes = await loadPhoto(id);
+        if (!bytes) {
+          imgs.push(null);
+          continue;
+        }
+        try {
+          imgs.push(await doc.embedJpg(bytes));
+        } catch {
+          imgs.push(null);
+        }
+      }
+      const scaled = imgs.map((img) => {
+        if (!img) return { w: colW, h: 24 };
+        const scale = Math.min(colW / img.width, maxPhotoH / img.height);
+        return { w: img.width * scale, h: img.height * scale };
+      });
+      const rowH = Math.max(...scaled.map((box) => box.h), 24) + 16;
+      ensure(rowH);
+      slice.forEach((_, col) => {
+        figCount += 1;
+        const img = imgs[col];
+        const box = scaled[col];
+        if (!box) return;
+        const x = M + col * (colW + photoGap);
+        if (img) page.drawImage(img, { x, y: y - box.h, width: box.w, height: box.h });
+        else page.drawText('Foto nicht verfügbar', { x, y: y - 14, size: 9, font, color: COLOR.muted });
+        page.drawText(safe(`Abb. ${figCount} – ${caption}`).slice(0, 70), {
+          x,
+          y: y - box.h - 11,
+          size: 8,
+          font,
+          color: COLOR.text,
+        });
+      });
+      y -= rowH;
+    }
   };
 
   heading('Räume');
-  for (const room of p.rooms) renderRoom(room);
+  for (const room of p.rooms) await renderRoom(room);
 
-  function renderRoom(room: Room) {
+  async function renderRoom(room: Room) {
     const defects = Object.entries(room.checks).filter(([, s]) => s === 'defect');
     ensure(48);
     y -= 4;
@@ -290,12 +333,14 @@ export async function generatePdf(p: Protocol, loadPhoto: PhotoLoader): Promise<
       y -= 14;
       if (state === 'defect') {
         const d = room.defects[checkId];
-        const nums = (d?.photoIds ?? []).map((id) => figNo(id, `${room.label} · ${label}`));
+        const ids = d?.photoIds ?? [];
+        const nums = ids.map((_, i) => figCount + i + 1);
         text(`Mangel: ${d?.description || '–'}${nums.length ? ` (Abb. ${nums.join(', ')})` : ''}`, {
           x: M + 20,
           size: 9.5,
           color: COLOR.defect,
         });
+        await drawFigs(ids, `${room.label} · ${label}`);
       }
     }
     const inv = Object.entries(room.inventory)
@@ -312,13 +357,14 @@ export async function generatePdf(p: Protocol, loadPhoto: PhotoLoader): Promise<
   heading('Zählerstände');
   if (!p.meters.length) text('Keine Zähler erfasst.', { color: COLOR.muted });
   for (const m of p.meters) {
-    const nums = m.photoIds.map((id) => figNo(id, `Zähler ${METER_LABEL[m.kind].label}`));
+    const nums = m.photoIds.map((_, i) => figCount + i + 1);
     kv(
       `${METER_LABEL[m.kind].label}`,
       `Nr. ${m.number || '–'} · Stand ${m.reading || '–'} ${METER_LABEL[m.kind].unit}${m.location ? ` · ${m.location}` : ''}${
         nums.length ? ` (Abb. ${nums.join(', ')})` : ''
       }`,
     );
+    await drawFigs(m.photoIds, `Zähler ${METER_LABEL[m.kind].label}`);
   }
   text(
     'Der Mieter bestätigt, dass er die Zählerstände gemeinsam mit dem Verwalter/Vermieter abgelesen hat.',
@@ -392,50 +438,6 @@ export async function generatePdf(p: Protocol, loadPhoto: PhotoLoader): Promise<
     );
   } else {
     text('ENTWURF – nicht versiegelt', { size: 9, f: bold, color: COLOR.defect });
-  }
-
-  // ---------- Fotoanhang ----------
-  if (figures.length) {
-    newPage();
-    page.drawText(safe('Anhang: Fotos'), { x: M, y: y - 16, size: 16, font: bold, color: COLOR.primary });
-    y -= 30;
-    const colW = (width - 16) / 2;
-    const maxH = 230;
-    let col = 0;
-    let rowH = 0;
-    for (const [i, fig] of figures.entries()) {
-      const bytes = await loadPhoto(fig.id);
-      let img: PDFImage | null = null;
-      if (bytes) {
-        try {
-          img = await doc.embedJpg(bytes);
-        } catch {
-          img = null;
-        }
-      }
-      const scale = img ? Math.min(colW / img.width, maxH / img.height) : 1;
-      const h = img ? img.height * scale : 40;
-      if (col === 0) {
-        ensure(h + 28);
-        rowH = 0;
-      }
-      const x = M + col * (colW + 16);
-      if (img) page.drawImage(img, { x, y: y - h, width: img.width * scale, height: h });
-      else page.drawText('Foto nicht verfügbar', { x, y: y - 20, size: 9, font, color: COLOR.muted });
-      page.drawText(safe(`Abb. ${i + 1} – ${fig.caption}`).slice(0, 70), {
-        x,
-        y: y - h - 12,
-        size: 8.5,
-        font,
-        color: COLOR.text,
-      });
-      rowH = Math.max(rowH, h + 24);
-      col++;
-      if (col === 2) {
-        col = 0;
-        y -= rowH;
-      }
-    }
   }
 
   // ---------- Fußzeile auf allen Seiten ----------

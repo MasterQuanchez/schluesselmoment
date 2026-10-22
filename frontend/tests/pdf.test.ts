@@ -1,4 +1,5 @@
-import { PDFDocument } from 'pdf-lib';
+import { readFileSync } from 'node:fs';
+import { PDFDict, PDFDocument, PDFName, PDFRawStream } from 'pdf-lib';
 import { describe, expect, it } from 'vitest';
 import { createDemoProtocol } from '@/domain/demo';
 import { completeRoom, confirmAllChecks, createProtocol, cycleCheck, updateDefect } from '@/domain/protocol';
@@ -57,4 +58,46 @@ describe('PDF', () => {
     );
     expect(real.getKeywords()?.split(/\s+/) ?? []).not.toContain('demo');
   });
+
+  it('setzt Mangel-Fotos auf die Raum-Seite, nicht in einen Anhang', async () => {
+    const foto1 = new Uint8Array(readFileSync(new URL('./e2e/fixtures/foto1.jpg', import.meta.url)));
+    const foto2 = new Uint8Array(readFileSync(new URL('./e2e/fixtures/foto2.jpg', import.meta.url)));
+    let p: Protocol = createProtocol('abnahme', new Date('2026-10-22T10:00:00Z'));
+    p = {
+      ...p,
+      rooms: p.rooms.map((r): Room => {
+        const all = confirmAllChecks(r);
+        if (r.id !== 'kitchen') return all;
+        return updateDefect(cycleCheck(all, 'walls'), 'walls', {
+          description: 'Dübellöcher',
+          photoIds: ['foto-1', 'foto-2'],
+        });
+      }),
+    };
+    const bytes = await generatePdf(p, async (id) =>
+      id === 'foto-1' ? foto1 : id === 'foto-2' ? foto2 : null,
+    );
+    const doc = await PDFDocument.load(bytes);
+    const counts = doc.getPages().map((_, index) => imageCount(doc, index));
+    expect(counts.reduce((sum, n) => sum + n, 0)).toBe(2);
+    const withImages = counts.findIndex((n) => n > 0);
+    expect(withImages).toBeGreaterThanOrEqual(0);
+    expect(withImages).toBeLessThan(doc.getPageCount() - 1);
+  });
 });
+
+function imageCount(doc: PDFDocument, index: number): number {
+  const resources = doc.getPage(index).node.Resources();
+  if (!resources) return 0;
+  const xobj = resources.get(PDFName.of('XObject'));
+  if (!xobj) return 0;
+  const dict = doc.context.lookup(xobj);
+  if (!(dict instanceof PDFDict)) return 0;
+  let n = 0;
+  for (const [, ref] of dict.entries()) {
+    const obj = doc.context.lookup(ref);
+    if (!(obj instanceof PDFRawStream)) continue;
+    if (obj.dict.lookup(PDFName.of('Subtype'))?.toString() === '/Image') n += 1;
+  }
+  return n;
+}

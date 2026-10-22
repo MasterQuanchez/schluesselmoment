@@ -3,12 +3,15 @@ import { CHECKS, INVENTORY, RULES } from '@/domain/catalog';
 import {
   appendPhrase,
   completeRoom,
+  conditionPhrases,
   cycleCheck,
   emptyDefect,
   getTemplate,
+  issueLabel,
   markHasDefects,
   markNoDefects,
-  phrasesFor,
+  photoCountLabel,
+  roomIssues,
   roomProgress,
 } from '@/domain/protocol';
 import type { CheckState, Protocol, Room } from '@/domain/schema';
@@ -27,6 +30,7 @@ export function RoomScreen({ id, roomId }: { id: string; roomId: string }) {
   const custom = settings?.customPhrases ?? [];
   const [toast, showToast] = useToast();
   const [openId, setOpenId] = useState<string | null>(null);
+  const [sheetFocus, setSheetFocus] = useState<'photos' | 'description' | undefined>(undefined);
   const [nudgeId, setNudgeId] = useState<string | null>(null);
   const infoRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
@@ -45,13 +49,11 @@ export function RoomScreen({ id, roomId }: { id: string; roomId: string }) {
     update((proto: Protocol) => ({ ...proto, rooms: proto.rooms.map((r) => (r.id === roomId ? fn(r) : r)) }));
 
   const openIds = template.checks.filter((checkId) => (room.checks[checkId] ?? 'open') === 'open');
-  const incompleteDefects = defectIds.filter((checkId) => {
-    const defect = room.defects[checkId];
-    return !defect?.description.trim() || defect.photoIds.length < RULES.minPhotosPerDefect;
-  });
+  const issues = roomIssues(room);
+  const firstIssue = issues[0];
   const idx = p.rooms.findIndex((r) => r.id === roomId);
   const nextRoom = p.rooms[idx + 1];
-  const ready = openIds.length === 0 && incompleteDefects.length === 0;
+  const ready = issues.length === 0;
 
   const onNoDefects = () => {
     const res = markNoDefects(room);
@@ -59,14 +61,12 @@ export function RoomScreen({ id, roomId }: { id: string; roomId: string }) {
     setRoom(() => res.room);
   };
 
-  const focusFirstGap = () => {
-    const defectId = incompleteDefects[0];
-    if (defectId) {
-      setOpenId(defectId);
-      return;
-    }
-    const checkId = openIds[0];
-    if (!checkId) return;
+  const openSheet = (checkId: string, focus?: 'photos' | 'description') => {
+    setSheetFocus(focus);
+    setOpenId(checkId);
+  };
+
+  const nudgeChip = (checkId: string) => {
     document
       .querySelector(`[data-check="${checkId}"]`)
       ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -74,10 +74,19 @@ export function RoomScreen({ id, roomId }: { id: string; roomId: string }) {
     window.setTimeout(() => setNudgeId((cur) => (cur === checkId ? null : cur)), 700);
   };
 
+  const onFirstIssue = () => {
+    if (!firstIssue) return;
+    if (firstIssue.kind === 'open') {
+      nudgeChip(firstIssue.checkId);
+      return;
+    }
+    openSheet(firstIssue.checkId, firstIssue.kind === 'missingPhotos' ? 'photos' : 'description');
+  };
+
   const onComplete = () => {
     const res = completeRoom(room);
     if (!res.ok) {
-      focusFirstGap();
+      onFirstIssue();
       return;
     }
     setRoom(() => res.room);
@@ -91,6 +100,9 @@ export function RoomScreen({ id, roomId }: { id: string; roomId: string }) {
   const finishLabel = nextRoom
     ? `${room.label} fertig – weiter zu ${nextRoom.label}`
     : `${room.label} fertig – zur Übersicht`;
+  const blockedLabel = firstIssue
+    ? `${issueLabel(firstIssue)}${issues.length > 1 ? ` · +${issues.length - 1} weitere` : ''}`
+    : finishLabel;
 
   return (
     <>
@@ -158,7 +170,11 @@ export function RoomScreen({ id, roomId }: { id: string; roomId: string }) {
                     className="chip"
                     data-state={s}
                     disabled={locked}
-                    onClick={() => setRoom((r) => cycleCheck(r, checkId))}
+                    onClick={() => {
+                      const current = room.checks[checkId] ?? 'open';
+                      setRoom((r) => cycleCheck(r, checkId));
+                      if (current === 'ok') openSheet(checkId, 'photos');
+                    }}
                     aria-label={`${label}: ${STATE_LABEL[s]}. Tippen zum Ändern.`}
                   >
                     <span className="chip__mark">
@@ -180,7 +196,7 @@ export function RoomScreen({ id, roomId }: { id: string; roomId: string }) {
                     ref={(node) => {
                       infoRefs.current[checkId] = node;
                     }}
-                    onClick={() => setOpenId(checkId)}
+                    onClick={() => openSheet(checkId)}
                   >
                     <Icon name="info" size={16} />
                   </button>
@@ -195,19 +211,25 @@ export function RoomScreen({ id, roomId }: { id: string; roomId: string }) {
           const def = CHECKS[checkId];
           const d = room.defects[checkId] ?? emptyDefect();
           const label = def?.label ?? checkId;
+          const photosShort = d.photoIds.length < RULES.minPhotosPerDefect;
           return (
-            <button
-              key={checkId}
-              type="button"
-              className="card card--defect card--summary"
-              onClick={() => setOpenId(checkId)}
-            >
-              <b>Mangel: {label}</b>
-              <span className="one-line">{d.description.trim() || 'Noch ohne Beschreibung'}</span>
-              <span className="badge">
-                {d.photoIds.length}/{RULES.minPhotosPerDefect} Fotos
-              </span>
-            </button>
+            <div key={checkId} className="card card--defect card--summary">
+              <button type="button" className="card__open" onClick={() => openSheet(checkId, 'description')}>
+                <b>Mangel: {label}</b>
+                <span className="one-line">{d.description.trim() || 'Noch ohne Beschreibung'}</span>
+                <span className={photosShort ? 'badge badge--defect' : 'badge badge--ok'}>
+                  {d.photoIds.length}/{RULES.minPhotosPerDefect} Fotos
+                </span>
+              </button>
+              <button
+                type="button"
+                className="btn"
+                disabled={locked}
+                onClick={() => openSheet(checkId, 'photos')}
+              >
+                <Icon name="camera" size={18} /> {photoCountLabel(d.photoIds.length)}
+              </button>
+            </div>
           );
         })}
 
@@ -219,7 +241,7 @@ export function RoomScreen({ id, roomId }: { id: string; roomId: string }) {
             Begriff antippen, um ihn in die Notizen zu übernehmen. Der Text bleibt frei änderbar.
           </p>
           <div className="chips" style={{ marginBottom: 12 }}>
-            {phrasesFor(room, custom).map((ph) => (
+            {conditionPhrases().map((ph) => (
               <button
                 key={ph}
                 type="button"
@@ -297,14 +319,10 @@ export function RoomScreen({ id, roomId }: { id: string; roomId: string }) {
             <button
               type="button"
               className={`btn btn--block${ready ? ' btn--primary' : ''}`}
-              onClick={ready ? onComplete : focusFirstGap}
+              onClick={ready ? onComplete : onFirstIssue}
             >
               {ready ? <Icon name="check" /> : null}
-              {ready
-                ? finishLabel
-                : incompleteDefects.length > 0
-                  ? `Noch ${incompleteDefects.length} Punkte zu klären`
-                  : `Noch ${openIds.length} offen`}
+              {blockedLabel}
             </button>
           </div>
         </div>
@@ -317,6 +335,7 @@ export function RoomScreen({ id, roomId }: { id: string; roomId: string }) {
           locked={locked}
           custom={custom}
           protocolId={id}
+          focus={sheetFocus}
           onChange={setRoom}
           onError={showToast}
           onClose={() => {

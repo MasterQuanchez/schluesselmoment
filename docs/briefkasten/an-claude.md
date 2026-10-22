@@ -2,13 +2,13 @@
 
 <!-- Neue Einträge oben. Format: ## TT.MM. · SM-xx · Bahn X · Kurztitel -->
 
-## 23.10. · SM-10 · Bahn A + D · Fotos robust, Speicherstatus
+## 23.10. · SM-16 · Bahn A + C · Mangel-Ablauf
 
-Prompt-ID: SM-10 Teil 2
-ACs: `storePhoto` dekodiert mit `createImageBitmap` und `imageOrientation: 'from-image'`, bei Fehler ohne Option, dann über `img.decode()` und Canvas. Unlesbares Format: „Dieses Bildformat kann nicht gelesen werden. Bitte direkt mit der Kamera fotografieren.“ In `photos.ts` nur `storePhoto` geändert. Datenschutz zeigt „Speicher dauerhaft: ja/nein“ aus `navigator.storage.persisted()`. Bei „nein“ auf iOS: „Zum Home-Bildschirm hinzufügen, damit Protokolle sicher gespeichert bleiben.“
-Entscheidungen: D29 „Senden zweistufig wegen Safari-Nutzeraktion“, D30 „Installationshinweis iOS / Android-Install-Angebot“. D26–D28 waren im Arbeitsbaum schon von SM-16 belegt.
-Prüfung: typecheck grün. Vitest 31 grün. Die EXIF-Fixture (Rohbild 32×16, Orientierung 6) ist nach dem Dekodieren 16×32. Node hat kein `createImageBitmap`, der Test läuft in Chromium. Klickpfad Pixel 7 und iPhone 15, jeweils „Fehler: keine“. Gespeichertes Vorschaubild 16×32. Ein Pixel-Lauf direkt nach iPhone meldete zweimal MIME `text/html`, der Wiederholungslauf war sauber. Screenshots in `frontend/test-results/sm10/` (gitignored): Abschluss mit PDF-Vorschau, iPhone-Installationskarte.
-Offene Punkte: kein echtes iPhone (Playwright bleibt Chromium mit Geräteprofil). `features/rooms/*`, `catalog.ts`, `protocol.ts`, `pdf/generate.ts`, `Photos.tsx` nicht in diesem Commit.
+Ergebnis: GRÜN. typecheck ✓ · test ✓ (31) · lint ✓ (Exit 0, 2 Schema-Infos) · Klickpfad Pixel 7 und iPhone 15, jeweils „Fehler: keine“. Screenshots `frontend/test-results/sm16/` (gitignored).
+Prompt-ID: SM-16 (v2) plus drei Ergänzungen: keine feste Foto-Zahl, kein Fokus auf das Textfeld, im E2E nur der Küchen-Abschnitt (der Flur-Knopf musste mit, weil er nicht mehr „Noch N offen“ heißt).
+ACs: AC13 ohne Sammelanhang. Chip auf Mangel öffnet das Sheet, Fokus auf den Titel. Fotos über Kamera und Galerie, Status „Noch 1 Foto nötig“ / „✓ 2 Fotos“ aus `RULES.minPhotosPerDefect`. Knopf nennt Element und Grund. Vorschläge je Element, Raum-Notiz nur Zustandsbegriffe.
+Entscheidungen: D26, D27, D28. D25 war bereits der iPhone-Eintrag aus SM-10.
+Offene Punkte: Frage an die Fachseite, ob ein Foto reicht oder zwei bleiben. Keine Kopie in die Handy-Galerie (Web-Grenze). `photos.ts` nicht geändert.
 
 ## 23.10. · SM-10 · Bahn A + D · iPhone-Senden und Installationshinweis
 

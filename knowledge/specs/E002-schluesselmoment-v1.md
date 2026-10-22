@@ -64,7 +64,7 @@ v1 (Nov./Dez. 2025, React/Vite) wird neu aufgebaut: der API-Key lag im Bundle, l
 - AC10: Given a shared protocol, when 30 days have passed, then it and its photos are deleted on next app start; the home list shows the deletion date before that.
 - AC11: Given airplane mode after first load, when the app is opened, then it works fully (create, photos, sign, PDF).
 - AC12: Given the production build, when served with the CSP from `frontend/vercel.json`, then there are no console errors and no request leaves the origin.
-- AC13: Given the PDF, then it contains text (not images of text), German umlauts, the defect with figure numbers, a photo appendix, signatures and „Seite x von y“.
+- AC13: Given the PDF, then it contains text (not images of text), German umlauts, the defect with figure numbers, defect photos on the room page and meter photos next to the meter (no photo appendix), signatures and „Seite x von y“.
 
 ## Features
 
@@ -84,3 +84,4 @@ Siehe `docs/app/DECISIONS.md` (D1–D16).
 
 - 2026-10-22 (Orchestrator/Claude): Kern 2.0.0-alpha.2 gebaut und geprüft. 17 Unit-Tests grün; vollständiger Klickpfad (Pixel 7, strikte CSP) grün: AC1–AC8, AC10 (Logik + Anzeige), AC12, AC13 verifiziert. AC9 nur Fallback (Download) geprüft – Teilen-Menü braucht echtes Android-Gerät. AC11 offen bis SM-01 (Service Worker wurde lokal nicht gebaut). Prüfumgebung: TS 6, React 19.2, Zod 3.25 (Produktion: Zod 4 – in SM-01 prüfen), pdf-lib 1.17, esbuild statt Vite 8 (Registry gesperrt).
 - 2026-10-22 SM-11: `setDetail` setzt ein offenes Element auf OK, einen Mangel nicht. Element-Sheet statt der Detail-Liste unten. Hinweisbox „Bitte noch erledigen“ entfernt. AC2 ergänzt: ein Detail bestätigt nur dieses Element.
+- 2026-10-23 SM-16: Gesperrte Zustände nennen Element und Grund (D26). Mangel-Vorschläge je Element, Raum-Notiz nur Zustandsbegriffe (D27). Fotos im PDF beim Mangel bzw. beim Zähler, kein Sammelanhang (D28, AC13). D25 war bereits SM-10.

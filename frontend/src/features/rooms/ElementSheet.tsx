@@ -1,6 +1,16 @@
-import { useEffect, useRef } from 'react';
-import { CHECKS, RULES } from '@/domain/catalog';
-import { appendPhrase, emptyDefect, phrasesFor, setCheck, setDetail, updateDefect } from '@/domain/protocol';
+import { useEffect, useRef, useState } from 'react';
+import { CHECKS, DEFECT_PHRASE_PREVIEW, RULES } from '@/domain/catalog';
+import {
+  appendPhrase,
+  defectPhrases,
+  emptyDefect,
+  photoStatusLabel,
+  roomIssues,
+  setCheck,
+  setDetail,
+  sheetCloseLabel,
+  updateDefect,
+} from '@/domain/protocol';
 import type { Room } from '@/domain/schema';
 import { Icon } from '@/ui/Icon';
 import { PhotoStrip } from '@/ui/Photos';
@@ -11,6 +21,7 @@ export function ElementSheet({
   locked,
   custom,
   protocolId,
+  focus,
   onChange,
   onClose,
   onError,
@@ -20,6 +31,8 @@ export function ElementSheet({
   locked: boolean;
   custom: readonly string[];
   protocolId: string;
+  /** Wohin gescrollt wird. Das Textfeld bekommt keinen Fokus, sonst deckt die Tastatur die Fotos ab. */
+  focus?: 'photos' | 'description';
   onChange: (fn: (r: Room) => Room) => void;
   onClose: () => void;
   onError: (msg: string) => void;
@@ -31,15 +44,35 @@ export function ElementSheet({
   const def = CHECKS[checkId];
   const state = room.checks[checkId] ?? 'open';
   const defect = room.defects[checkId] ?? emptyDefect();
+  const [detailsOpen, setDetailsOpen] = useState(state !== 'defect');
+  const [morePhrases, setMorePhrases] = useState(false);
+  const phrases = defectPhrases(checkId, custom);
+  const visiblePhrases = morePhrases ? phrases : phrases.slice(0, DEFECT_PHRASE_PREVIEW);
+  const pending =
+    state === 'defect' ? roomIssues(room).find((issue) => issue.checkId === checkId) : undefined;
+  const photoCount = defect.photoIds.length;
+  const photosEnough = photoCount >= RULES.minPhotosPerDefect;
 
   useEffect(() => {
-    dialogRef.current?.querySelector<HTMLElement>('button, textarea, input')?.focus();
+    setDetailsOpen(state !== 'defect');
+  }, [state]);
+
+  useEffect(() => {
+    const root = dialogRef.current;
+    root?.querySelector<HTMLElement>('#sheet-title')?.focus();
+    const target =
+      focus === 'photos'
+        ? root?.querySelector('#sheet-photos')
+        : focus === 'description'
+          ? root?.querySelector('textarea')
+          : null;
+    target?.scrollIntoView({ block: 'nearest' });
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') closeRef.current();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  }, [focus]);
 
   return (
     <div className="sheet-root">
@@ -63,7 +96,7 @@ export function ElementSheet({
           startY.current = null;
         }}
       >
-        <h2 id="sheet-title" className="page-title">
+        <h2 id="sheet-title" className="page-title" tabIndex={-1}>
           {def?.label ?? checkId}
         </h2>
         {def?.hint ? <p className="hint">{def.hint}</p> : null}
@@ -87,71 +120,92 @@ export function ElementSheet({
             <Icon name="alert" size={18} /> Mangel
           </button>
         </div>
-        {def?.attributes?.map((attr) => (
-          <div key={attr.id} className="stack">
-            <b className="muted">{attr.label}</b>
-            <div className="chips">
-              {attr.options.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  className="chip chip--option"
-                  disabled={locked}
-                  aria-pressed={room.details[checkId]?.[attr.id] === option.id}
-                  onClick={() => onChange((r) => setDetail(r, checkId, attr.id, option.id))}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
         {state === 'defect' ? (
-          <div className="stack">
-            <textarea
-              className="textarea"
-              aria-label="Mangel beschreiben"
-              placeholder="Was genau? Wo? Wie groß?"
-              value={defect.description}
-              disabled={locked}
-              onChange={(e) => {
-                const description = e.currentTarget.value;
-                onChange((r) => updateDefect(r, checkId, { description }));
-              }}
-            />
-            <div className="chips">
-              {phrasesFor(room, custom).map((phrase) => (
-                <button
-                  key={phrase}
-                  type="button"
-                  className="chip chip--phrase"
-                  disabled={locked}
-                  onClick={() =>
-                    onChange((r) =>
-                      updateDefect(r, checkId, {
-                        description: appendPhrase(r.defects[checkId]?.description ?? '', phrase),
-                      }),
-                    )
-                  }
-                >
-                  {phrase}
-                </button>
-              ))}
+          <>
+            <div id="sheet-photos" className="stack">
+              <PhotoStrip
+                variant="pills"
+                protocolId={protocolId}
+                ids={defect.photoIds}
+                disabled={locked}
+                onError={onError}
+                onChange={(photoIds) => onChange((r) => updateDefect(r, checkId, { photoIds }))}
+              />
+              <p
+                className={photosEnough ? 'photo-status photo-status--ok' : 'photo-status photo-status--warn'}
+              >
+                {photoStatusLabel(photoCount)}
+              </p>
             </div>
-            <PhotoStrip
-              protocolId={protocolId}
-              ids={defect.photoIds}
-              disabled={locked}
-              onError={onError}
-              onChange={(photoIds) => onChange((r) => updateDefect(r, checkId, { photoIds }))}
-            />
-            <p className="hint">
-              {defect.photoIds.length}/{RULES.minPhotosPerDefect} Fotos
-            </p>
-          </div>
+            <div className="stack">
+              <textarea
+                className="textarea"
+                aria-label="Mangel beschreiben"
+                placeholder="Was genau? Wo? Wie groß?"
+                value={defect.description}
+                disabled={locked}
+                onChange={(e) => {
+                  const description = e.currentTarget.value;
+                  onChange((r) => updateDefect(r, checkId, { description }));
+                }}
+              />
+              <div className="chips">
+                {visiblePhrases.map((phrase) => (
+                  <button
+                    key={phrase}
+                    type="button"
+                    className="chip chip--phrase"
+                    disabled={locked}
+                    onClick={() =>
+                      onChange((r) =>
+                        updateDefect(r, checkId, {
+                          description: appendPhrase(r.defects[checkId]?.description ?? '', phrase),
+                        }),
+                      )
+                    }
+                  >
+                    {phrase}
+                  </button>
+                ))}
+                {!morePhrases && phrases.length > DEFECT_PHRASE_PREVIEW ? (
+                  <button type="button" className="chip chip--phrase" onClick={() => setMorePhrases(true)}>
+                    Mehr Vorschläge
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          </>
         ) : null}
-        <button type="button" className="btn btn--primary btn--block" onClick={() => closeRef.current()}>
-          Fertig
+        {def?.attributes?.length ? (
+          <details className="more" open={detailsOpen} onToggle={(e) => setDetailsOpen(e.currentTarget.open)}>
+            <summary>Details (optional): {def.attributes.map((attr) => attr.label).join(', ')}</summary>
+            {def.attributes.map((attr) => (
+              <div key={attr.id} className="stack">
+                <b className="muted">{attr.label}</b>
+                <div className="chips">
+                  {attr.options.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      className="chip chip--option"
+                      disabled={locked}
+                      aria-pressed={room.details[checkId]?.[attr.id] === option.id}
+                      onClick={() => onChange((r) => setDetail(r, checkId, attr.id, option.id))}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </details>
+        ) : null}
+        <button
+          type="button"
+          className={pending ? 'btn btn--block' : 'btn btn--primary btn--block'}
+          onClick={() => closeRef.current()}
+        >
+          {pending ? sheetCloseLabel(pending) : 'Fertig'}
         </button>
       </div>
     </div>

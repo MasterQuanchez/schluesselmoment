@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ROOM_TEMPLATES, RULES } from '@/domain/catalog';
+import { DEFECT_PHRASE_PREVIEW, ROOM_TEMPLATES, RULES } from '@/domain/catalog';
 import {
   addSignature,
   allSigned,
@@ -10,17 +10,25 @@ import {
   canonicalJson,
   completeRoom,
   computeSealHash,
+  conditionPhrases,
   confirmAllChecks,
   createProtocol,
   cycleCheck,
+  defectPhrases,
   deletionDate,
   isExpired,
+  issueLabel,
   mailRecipients,
   markNoDefects,
+  photoCountLabel,
+  photoStatusLabel,
   protocolIssues,
   requiredSigners,
+  roomIssues,
   sealProtocol,
+  setCheck,
   setDetail,
+  sheetCloseLabel,
   startSigning,
   updateDefect,
 } from '@/domain/protocol';
@@ -152,6 +160,64 @@ describe('Schnellerfassung', () => {
     expect(completeRoom(x).ok).toBe(RULES.minPhotosPerDefect <= 1);
     x = updateDefect(x, 'floor', { photoIds: ['a', 'b'] });
     expect(completeRoom(x).ok).toBe(true);
+  });
+
+  it('nennt Element und Grund, Foto vor der Beschreibung', () => {
+    expect(issueLabel({ checkId: 'ceiling', kind: 'open', missingCount: 0 })).toBe(
+      'Decke: noch nicht geprüft',
+    );
+    expect(issueLabel({ checkId: 'walls', kind: 'missingDescription', missingCount: 0 })).toBe(
+      'Wände: Beschreibung fehlt',
+    );
+    expect(issueLabel({ checkId: 'walls', kind: 'missingPhotos', missingCount: 1 })).toBe(
+      'Wände: 1 Foto fehlt',
+    );
+    expect(issueLabel({ checkId: 'walls', kind: 'missingPhotos', missingCount: 2 })).toBe(
+      'Wände: 2 Fotos fehlen',
+    );
+    expect(sheetCloseLabel({ checkId: 'walls', kind: 'missingPhotos', missingCount: 1 })).toBe(
+      'Schließen – 1 Foto fehlt noch',
+    );
+    expect(photoCountLabel(1, 2)).toBe('Foto (1/2)');
+    expect(photoCountLabel(0, 1)).toBe('Foto (0/1)');
+    expect(photoStatusLabel(0, 2)).toBe('Noch 2 Fotos nötig');
+    expect(photoStatusLabel(1, 2)).toBe('Noch 1 Foto nötig');
+    expect(photoStatusLabel(1, 1)).toBe('✓ 1 Foto');
+    expect(photoStatusLabel(2, 2)).toBe('✓ 2 Fotos');
+
+    const defect = setCheck(confirmAllChecks(room()), 'walls', 'defect');
+    const open = roomIssues(defect);
+    const firstOpen = open[0];
+    if (!firstOpen) throw new Error('Issue fehlt');
+    expect(open.map((issue) => issue.kind)).toEqual(['missingPhotos', 'missingDescription']);
+    expect(firstOpen.missingCount).toBe(RULES.minPhotosPerDefect);
+    expect(issueLabel(firstOpen)).toContain('Wände:');
+
+    const missing = RULES.minPhotosPerDefect - 1;
+    const first = roomIssues(updateDefect(defect, 'walls', { photoIds: ['a'] }))[0];
+    if (!first) throw new Error('Issue fehlt');
+    if (missing > 0) {
+      expect(first).toMatchObject({ checkId: 'walls', kind: 'missingPhotos', missingCount: missing });
+      expect(issueLabel(first)).toBe(
+        missing === 1 ? 'Wände: 1 Foto fehlt' : `Wände: ${missing} Fotos fehlen`,
+      );
+    } else {
+      expect(first.kind).toBe('missingDescription');
+    }
+  });
+
+  it('Mangel-Vorschläge gehören zum Element, Zustandsbegriffe zur Notiz', () => {
+    const walls = defectPhrases('walls', ['Eigener Begriff']);
+    expect(walls[0]).toBe('Dübellöcher');
+    expect(walls).toContain('Fehlt');
+    expect(walls).not.toContain('Fachgerecht renoviert');
+    expect(walls).not.toContain('Kühlschrank verschmutzt');
+    expect(walls.at(-1)).toBe('Eigener Begriff');
+    expect(walls.length).toBeGreaterThan(DEFECT_PHRASE_PREVIEW);
+    expect(defectPhrases('oven')).toContain('Backofen verschmutzt');
+    expect(defectPhrases('oven')).not.toContain('Dübellöcher');
+    expect(conditionPhrases()).toContain('Besenrein');
+    expect(conditionPhrases()).not.toContain('Dübellöcher');
   });
 
   it('Schnellauswahl hängt an und vermeidet Doppelungen', () => {

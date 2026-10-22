@@ -32,8 +32,6 @@ export interface RoomTemplate {
   label: string;
   checks: ReadonlyArray<string>;
   inventory?: ReadonlyArray<string>;
-  /** Schnellauswahl-Gruppen, die zusätzlich zu den allgemeinen Begriffen erscheinen */
-  phraseGroups?: ReadonlyArray<string>;
 }
 
 export type IconName =
@@ -260,7 +258,6 @@ export const ROOM_TEMPLATES: Record<string, RoomTemplate> = {
     id: 'kitchenBasic',
     label: 'Küche',
     checks: [...ROOM_PARTS, 'tileSplash', 'clean', 'mold', 'faucets', 'lights'],
-    phraseGroups: ['kitchen'],
   },
   kitchenFitted: {
     id: 'kitchenFitted',
@@ -282,7 +279,6 @@ export const ROOM_TEMPLATES: Record<string, RoomTemplate> = {
       'upperCabinets',
       'lowerCabinets',
     ],
-    phraseGroups: ['kitchen'],
   },
   bathroom: {
     id: 'bathroom',
@@ -316,7 +312,6 @@ export const ROOM_TEMPLATES: Record<string, RoomTemplate> = {
       'paperHolder',
       'spots',
     ],
-    phraseGroups: ['bath'],
   },
   guestWc: {
     id: 'guestWc',
@@ -336,7 +331,6 @@ export const ROOM_TEMPLATES: Record<string, RoomTemplate> = {
       'lights',
     ],
     inventory: ['washbasin', 'toilet', 'mirror', 'towelHook', 'paperHolder', 'spots'],
-    phraseGroups: ['bath'],
   },
   room: { id: 'room', label: 'Zimmer', checks: [...ROOM_PARTS] },
   // Balkon/Terrasse: keine Fenster, keine Türrahmen, keine Heizkörper (Sprachnachricht 01.12.2025)
@@ -365,34 +359,59 @@ export const ROOM_TEMPLATES: Record<string, RoomTemplate> = {
   },
 };
 
-/**
- * Schnellauswahl: ein Tipp hängt den Begriff an die Notiz an (frei editierbar).
- * Gruppe 'general' erscheint überall.
- */
-export const PHRASES: Record<string, ReadonlyArray<string>> = {
-  general: [
-    'Besenrein',
-    'Fachgerecht renoviert',
-    'Normale Abnutzung',
-    'Starke Abnutzungserscheinungen',
-    'Kratzer im Boden',
-    'Dübellöcher',
-    'Starker Geruch',
-    'Feuchtigkeitsschäden',
-    'Schimmelbefall',
-    'Nikotinverfärbung',
-    'Nicht fachgerecht gestrichen',
-    'Lampen des Mieters noch montiert',
-    'Vorhangstangen noch montiert',
-  ],
-  kitchen: [
-    'Backofen verschmutzt',
-    'Kühlschrank verschmutzt',
-    'Fettfilm an Dunstabzug',
-    'Arbeitsplatte beschädigt',
-  ],
-  bath: ['Fugen verfärbt', 'Duschkopf verkalkt', 'Haare im Abfluss', 'Silikon erneuern'],
+/** Zustand des Raums – nur die Notiz unten auf der Raumseite, nicht der Mangel. */
+export const CONDITION_PHRASES = [
+  'Besenrein',
+  'Fachgerecht renoviert',
+  'Normale Abnutzung',
+  'Starke Abnutzungserscheinungen',
+  'Starker Geruch',
+  'Vorhangstangen noch montiert',
+] as const;
+
+const WALL_DEFECTS = [
+  'Dübellöcher',
+  'Risse',
+  'Nikotinverfärbung',
+  'Schimmelbefall',
+  'Feuchtigkeitsschäden',
+  'Nicht fachgerecht gestrichen',
+  'Verschmutzt',
+] as const;
+const FLOOR_DEFECTS = ['Kratzer', 'Dellen', 'Fleck', 'Fugen beschädigt', 'Belag lose'] as const;
+const WINDOW_DEFECTS = ['Glas beschädigt', 'Dichtung defekt', 'Rollladen defekt', 'Griff locker'] as const;
+const DOOR_DEFECTS = ['Kratzer', 'Schließt nicht', 'Zarge beschädigt', 'Schlüssel fehlt'] as const;
+const RADIATOR_DEFECTS = ['Verschmutzt', 'Thermostat defekt', 'Undicht'] as const;
+const APPLIANCE_DEFECTS = [
+  'Backofen verschmutzt',
+  'Kühlschrank verschmutzt',
+  'Fettfilm an Dunstabzug',
+  'Arbeitsplatte beschädigt',
+] as const;
+const WET_DEFECTS = ['Fliese gesprungen', 'Fugen verfärbt', 'Silikon erneuern', 'Kalk'] as const;
+const ELECTRIC_DEFECTS = ['Abdeckung fehlt', 'Defekt', 'Lampe des Mieters noch montiert'] as const;
+
+/** Mangel-Vorschläge je Prüfpunkt. `general` gilt für jedes Element. */
+export const DEFECT_PHRASES: Record<string, readonly string[]> = {
+  general: ['Fehlt', 'Defekt', 'Verschmutzt'],
+  walls: WALL_DEFECTS,
+  ceiling: WALL_DEFECTS,
+  floor: FLOOR_DEFECTS,
+  windows: WINDOW_DEFECTS,
+  door: DOOR_DEFECTS,
+  radiator: RADIATOR_DEFECTS,
+  oven: APPLIANCE_DEFECTS,
+  fridge: APPLIANCE_DEFECTS,
+  hood: APPLIANCE_DEFECTS,
+  tileSplash: WET_DEFECTS,
+  silicone: WET_DEFECTS,
+  limescale: WET_DEFECTS,
+  sockets: ELECTRIC_DEFECTS,
+  lights: ELECTRIC_DEFECTS,
 };
+
+/** So viele Mangel-Vorschläge sind ohne „Mehr Vorschläge“ sichtbar. */
+export const DEFECT_PHRASE_PREVIEW = 8;
 
 export const PROTOCOL_TYPE_LABEL = {
   uebergabe: 'Übergabe (Einzug)',

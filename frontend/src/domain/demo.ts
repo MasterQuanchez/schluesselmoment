@@ -2,7 +2,7 @@
  * Fertiges Beispielprotokoll für Vorführung und Test von Unterschrift und PDF.
  * Reine Fachlogik: Fotos setzt die Oberfläche, danach wird die Küche abgeschlossen.
  */
-import { PHRASES } from './catalog';
+import { CONDITION_PHRASES } from './catalog';
 import {
   appendPhrase,
   applyFeatures,
@@ -11,7 +11,6 @@ import {
   createProtocol,
   markNoDefects,
   newId,
-  phrasesFor,
   setCheck,
   setDetail,
   updateDefect,
@@ -31,9 +30,7 @@ function withDetails(room: Room): Room {
 }
 
 function withPhrase(room: Room): Room {
-  const phrases = phrasesFor(room);
-  const general = new Set(PHRASES.general ?? []);
-  const phrase = phrases.find((item) => !general.has(item)) ?? phrases[0];
+  const phrase = CONDITION_PHRASES[0];
   return phrase ? { ...room, note: appendPhrase(room.note, phrase) } : room;
 }
 

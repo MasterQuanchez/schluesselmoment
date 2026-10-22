@@ -71,7 +71,7 @@ async function tapAllOpen() {
   }
 }
 await page.getByText('Bitte jeden Punkt einmal antippen.').waitFor();
-await page.getByRole('button', { name: /Noch \d+ offen/ }).waitFor();
+await page.getByRole('button', { name: /noch nicht geprüft/ }).waitFor();
 await shot(page, 'sm11-offen');
 await page.getByRole('button', { name: 'Details zu Decke' }).click();
 const decke = page.getByRole('dialog');
@@ -90,38 +90,43 @@ await shot(page, '04-flur-alle-bestaetigt');
 await page.getByRole('button', { name: /Flur fertig – weiter/ }).waitFor();
 await shot(page, 'sm11-fertig');
 await page.getByRole('button', { name: /Flur fertig – weiter/ }).click();
-// Küche: Mix wie im Screenshot, Backofen-Mangel mit 2 Fotos im Sheet
+// Küche: übrige Punkte OK, dann Wände auf Mangel. Ein Foto reicht nicht.
 await page.getByRole('heading', { name: 'Küche', level: 1 }).waitFor();
-await page.getByRole('button', { name: /^Wände:/ }).click();
-await page.getByRole('button', { name: /^Tür\/Rahmen:/ }).click();
-await page.getByRole('button', { name: /^Steckdosen\/Schalter:/ }).click();
-await shot(page, '05-kueche-schnellcheck');
-await page.getByRole('button', { name: /^Backofen innen:/ }).click();
-await page.getByRole('button', { name: /^Backofen innen:/ }).click();
-await page.getByRole('button', { name: /Noch \d+ Punkte zu klären/ }).click();
-await page.getByRole('dialog').getByRole('heading', { name: 'Backofen innen' }).waitFor();
-await page.getByRole('dialog').getByRole('button', { name: 'Fertig', exact: true }).click();
-await page.getByText('Bitte noch erledigen:').waitFor({ state: 'hidden' });
-await page.getByRole('button', { name: 'Keine Mängel' }).click(); // sollte abgelehnt werden (Mangel markiert)
-await page.getByText('Es ist noch ein Mangel markiert').waitFor();
 await tapAllOpen();
-await page.getByRole('button', { name: /Mangel: Backofen innen/ }).click();
-const defect = page.getByRole('dialog');
-await defect.locator('.chip--phrase', { hasText: 'Backofen verschmutzt' }).click();
-await defect.getByLabel('Mangel beschreiben').press('End');
-await defect.getByLabel('Mangel beschreiben').pressSequentially(', eingebrannte Fettreste');
-await defect
-  .locator('input[type=file]')
-  .setInputFiles([`tests/e2e/fixtures/foto1.jpg`, `tests/e2e/fixtures/foto2.jpg`]);
-await defect.locator('.thumb img').nth(1).waitFor();
-await shot(page, 'sm11-mangel');
-await defect.getByRole('button', { name: 'Fertig', exact: true }).click();
+await shot(page, '05-kueche-schnellcheck');
+await page.getByRole('button', { name: /^Wände:/ }).click();
+const walls = page.getByRole('dialog');
+await walls.getByRole('heading', { name: 'Wände' }).waitFor();
+await shot(page, 'sm16-sheet');
+await walls.locator('input[type=file]:not([capture])').setInputFiles(['tests/e2e/fixtures/orient6.jpg']);
+await walls.locator('.thumb img').first().waitFor();
+const orient = await walls
+  .locator('.thumb img')
+  .first()
+  .evaluate(async (img) => {
+    if (typeof img.decode === 'function') await img.decode();
+    return { w: img.naturalWidth, h: img.naturalHeight };
+  });
+console.log('EXIF-Foto:', orient.w, '×', orient.h);
+if (!(orient.w > 0 && orient.w < orient.h)) errors.push(`EXIF-Orientierung: ${orient.w}×${orient.h}`);
+await walls.getByRole('button', { name: 'Schließen – 1 Foto fehlt noch' }).click();
+await page.getByRole('button', { name: /Wände: 1 Foto fehlt/ }).waitFor();
+await shot(page, 'sm16-foto-fehlt');
+await page.getByRole('button', { name: 'Keine Mängel' }).click();
+await page.getByText('Es ist noch ein Mangel markiert').waitFor();
+await page.getByRole('button', { name: /Wände: 1 Foto fehlt/ }).click();
+const again = page.getByRole('dialog');
+await again.locator('#sheet-photos').waitFor();
+await again.locator('input[type=file]:not([capture])').setInputFiles(['tests/e2e/fixtures/foto2.jpg']);
+await again.locator('.thumb img').nth(1).waitFor();
+await again.getByRole('button', { name: 'Dübellöcher', exact: true }).click();
+await shot(page, 'sm16-mangel');
+await again.getByRole('button', { name: 'Fertig', exact: true }).click();
 await page.locator('.chip--phrase', { hasText: 'Besenrein' }).click();
 await page.locator('.chip--phrase', { hasText: 'Normale Abnutzung' }).click();
-await page.locator('.chip--phrase', { hasText: 'Zählerschrank verschmutzt' }).click();
 await page.getByRole('heading', { name: 'Schnellcheck' }).scrollIntoViewIfNeeded();
 await shot(page, '07-kueche-mangel');
-await page.getByRole('button', { name: /Mangel: Backofen innen/ }).scrollIntoViewIfNeeded();
+await page.getByRole('button', { name: /Mangel: Wände/ }).scrollIntoViewIfNeeded();
 await shot(page, '08-kueche-mangel-fotos');
 console.log('Notiz:', await page.getByLabel('Notizen zum Raum').inputValue());
 await page.getByRole('button', { name: /Küche fertig – weiter/ }).click();
