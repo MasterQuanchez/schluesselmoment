@@ -1,5 +1,6 @@
 import { PDFDocument } from 'pdf-lib';
 import { describe, expect, it } from 'vitest';
+import { createDemoProtocol } from '@/domain/demo';
 import { completeRoom, confirmAllChecks, createProtocol, cycleCheck, updateDefect } from '@/domain/protocol';
 import type { Protocol, Room } from '@/domain/schema';
 import { generatePdf, pdfFileName } from '@/pdf/generate';
@@ -42,5 +43,18 @@ describe('PDF', () => {
     expect(
       pdfFileName({ ...p, type: 'uebergabe', property: { ...p.property, street: 'Große Straße 1' } }),
     ).toBe('Uebergabeprotokoll_Grosse-Strasse-1_2026-10-22.pdf');
+  });
+
+  it('setzt Betreff und Keyword nur beim Demo-Protokoll', async () => {
+    const demo = await PDFDocument.load(
+      await generatePdf(createDemoProtocol(new Date('2026-10-22T12:00:00Z')), async () => null),
+    );
+    expect(demo.getSubject()).toBe('DEMO – kein echtes Protokoll');
+    expect(demo.getKeywords()?.split(/\s+/)).toContain('demo');
+
+    const real = await PDFDocument.load(
+      await generatePdf(createProtocol('abnahme', new Date('2026-10-22T10:00:00Z')), async () => null),
+    );
+    expect(real.getKeywords()?.split(/\s+/) ?? []).not.toContain('demo');
   });
 });

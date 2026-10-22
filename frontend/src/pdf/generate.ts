@@ -3,7 +3,7 @@
  * Kein Netz, keine Server: personenbezogene Daten verlassen das Handy erst beim Teilen.
  * Reihenfolge an das Word-Protokoll (2021) angelehnt; Fotos im Anhang mit Abbildungsnummern.
  */
-import { PDFDocument, type PDFFont, type PDFImage, type PDFPage, rgb, StandardFonts } from 'pdf-lib';
+import { degrees, PDFDocument, type PDFFont, type PDFImage, type PDFPage, rgb, StandardFonts } from 'pdf-lib';
 import { APP_CONFIG } from '@/config';
 import { CHECKS, INVENTORY, KEY_LABEL, METER_LABEL, PROTOCOL_TYPE_LABEL } from '@/domain/catalog';
 import { requiredSigners, signatureFor } from '@/domain/protocol';
@@ -24,6 +24,7 @@ const COLOR = {
   text: hex('#0F1B2D'), // text-regular
   muted: hex('#5F6B7E'), // text-medium
   primary: hex('#0B1F3A'), // primary (Navy)
+  primary20: hex('#dce5f2'), // primary-20, Wasserzeichen
   accent: hex('#0A6CB8'), // accent (Ocean)
   ok: hex('#0E6B4D'), // text-success
   defect: hex('#8A5300'), // text-warning
@@ -53,7 +54,13 @@ export async function generatePdf(p: Protocol, loadPhoto: PhotoLoader): Promise<
   doc.setCreator('Schlüsselmoment');
   doc.setProducer('Schlüsselmoment (pdf-lib)');
   doc.setCreationDate(new Date(p.createdAt));
-  if (p.seal) doc.setKeywords([`sha256:${p.seal.hash}`, `protocol:${p.id}`]);
+  const demo = p.inspector === 'Demo';
+  if (demo) doc.setSubject('DEMO – kein echtes Protokoll');
+  const keywords = [
+    ...(p.seal ? [`sha256:${p.seal.hash}`, `protocol:${p.id}`] : []),
+    ...(demo ? ['demo'] : []),
+  ];
+  if (keywords.length) doc.setKeywords(keywords);
 
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
@@ -435,6 +442,17 @@ export async function generatePdf(p: Protocol, loadPhoto: PhotoLoader): Promise<
   const pages = doc.getPages();
   const foot = `${TITLE[p.type]} · ${p.property.street} · ID ${p.id.slice(0, 8)}${p.seal ? ` · SHA-256 ${p.seal.hash.slice(0, 16)}…` : ' · ENTWURF'}`;
   pages.forEach((pg, i) => {
+    if (demo) {
+      pg.drawText('DEMO', {
+        x: 150,
+        y: 280,
+        size: 96,
+        font: bold,
+        color: COLOR.primary20,
+        opacity: 0.15,
+        rotate: degrees(45),
+      });
+    }
     pg.drawText(safe(foot), { x: M, y: 24, size: 7.5, font, color: COLOR.muted });
     const n = `Seite ${i + 1} von ${pages.length}`;
     pg.drawText(n, {

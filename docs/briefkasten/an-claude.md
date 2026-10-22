@@ -2,6 +2,14 @@
 
 <!-- Neue Einträge oben. Format: ## TT.MM. · SM-xx · Bahn X · Kurztitel -->
 
+## 22.10. · SM-12 · Bahn H · Demo-Protokoll
+
+Prompt-ID: SM-12
+ACs: `createDemoProtocol` in `frontend/src/domain/demo.ts` (Abnahme, Musterstraße 1, 70173 Stuttgart, 2. OG links, erstellt von Demo, Einbauküche, Balkon, Keller, Parteien, Zähler, Schlüssel, Notiz). Alle Räume außer der Küche abgeschlossen; Küche genau ein Mangel am Backofen, Fotos leer. Knopf „Demo-Protokoll erstellen“ unter Mehr → Test & Vorführung speichert zwei Canvas-Fotos, schließt die Küche ab und öffnet den Abschluss. Startseite zeigt die Pill DEMO, wenn `inspector === 'Demo'`. „Erstellt von“ ist dann schreibgeschützt, Hinweis „Demo-Protokoll“. PDF: diagonales Wasserzeichen DEMO (primary-20, Deckkraft 0.15), Betreff „DEMO – kein echtes Protokoll“, Keyword `demo`. `features/rooms/*` und `setDetail`/`cycleCheck` nicht geändert.
+Ergebnis: typecheck ✓ · test ✓ (23) · lint ✓ (Exit 0, 2 Infos zum Biome-Schema, unverändert). Manuell: Mehr → Demo → Abschluss („Alles erfasst“, 9/9 Räume) → festschreiben → zwei Unterschriften → versiegeln → PDF speichern (`Abnahmeprotokoll_Musterstrasse-1_2026-10-22.pdf`, kein PDF-Fehler). Screenshots: `frontend/test-results/sm12/` (gitignored).
+Entscheidung: D23.
+Offene Punkte: keine.
+
 ## 22.10. · SM-11 · Bahn A · Element-Sheet, Details zählen
 
 Ergebnis: GRÜN

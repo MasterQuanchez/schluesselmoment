@@ -83,7 +83,10 @@ export function HomeScreen() {
                     href={href({ name: p.status === 'signed' ? 'finish' : 'rooms', id: p.id })}
                   >
                     <div className="grow">
-                      <div className="list-item__title">{p.property.street || 'Ohne Adresse'}</div>
+                      <div className="list-item__title row">
+                        <span>{p.property.street || 'Ohne Adresse'}</span>
+                        {p.inspector === 'Demo' ? <span className="badge">DEMO</span> : null}
+                      </div>
                       <div className="small muted">
                         {PROTOCOL_TYPE_LABEL[p.type]} · {new Date(p.createdAt).toLocaleDateString('de-DE')} ·{' '}
                         {p.status === 'signed' ? 'unterschrieben' : `${done}/${p.rooms.length} Räume`}

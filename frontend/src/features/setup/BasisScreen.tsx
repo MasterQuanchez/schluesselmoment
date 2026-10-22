@@ -107,12 +107,14 @@ export function BasisScreen({ id }: { id: string }) {
               className="input"
               autoComplete="off"
               value={p.inspector}
+              readOnly={p.inspector === 'Demo'}
               onChange={(e) => {
                 const v = e.currentTarget.value;
                 update((x) => ({ ...x, inspector: v }));
               }}
             />
           </Field>
+          {p.inspector === 'Demo' ? <p className="hint">Demo-Protokoll</p> : null}
         </fieldset>
 
         <h2 className="section-title">Ausstattung</h2>

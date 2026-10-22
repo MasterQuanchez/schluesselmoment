@@ -1,14 +1,49 @@
 import { useState } from 'react';
 import { APP_CONFIG } from '@/config';
 import { PHRASES } from '@/domain/catalog';
+import { createDemoProtocol } from '@/domain/demo';
+import { completeRoom, updateDefect } from '@/domain/protocol';
+import { navigate } from '@/router';
+import { saveProtocol } from '@/storage/db';
+import { storePhoto } from '@/storage/photos';
 import { useSettings } from '@/storage/useSettings';
 import { Icon } from '@/ui/Icon';
 import { Field, TopBar } from '@/ui/kit';
+import { createDemoPhoto } from './demoPhoto';
 
 export function SettingsScreen() {
   const { settings, update } = useSettings();
   const [phrase, setPhrase] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [demoError, setDemoError] = useState('');
   if (!settings) return <div className="empty">Lädt …</div>;
+
+  const createDemo = async () => {
+    setBusy(true);
+    setDemoError('');
+    try {
+      let protocol = createDemoProtocol();
+      const photoIds: string[] = [];
+      for (const label of ['1/2', '2/2']) {
+        photoIds.push(await storePhoto(await createDemoPhoto(label), protocol.id));
+      }
+      const kitchen = protocol.rooms.find((room) => room.id === 'kitchen');
+      if (!kitchen) throw new Error('Küche fehlt im Demo-Protokoll.');
+      const withPhotos = updateDefect(kitchen, 'oven', { photoIds });
+      const done = completeRoom(withPhotos);
+      if (!done.ok) throw new Error(done.reason);
+      protocol = {
+        ...protocol,
+        rooms: protocol.rooms.map((room) => (room.id === 'kitchen' ? done.room : room)),
+      };
+      await saveProtocol(protocol);
+      navigate({ name: 'finish', id: protocol.id });
+    } catch (error) {
+      setDemoError(error instanceof Error ? error.message : 'Demo-Protokoll konnte nicht erstellt werden.');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const add = () => {
     const v = phrase.trim().replace(/\s+/g, ' ').slice(0, 80);
@@ -89,6 +124,24 @@ export function SettingsScreen() {
                 </span>
               ))}
           </div>
+        </details>
+
+        <details className="more">
+          <summary>
+            <Icon name="chevronDown" /> Test & Vorführung
+          </summary>
+          <p className="hint">
+            Legt ein fertiges Beispiel an. Unterschrift und PDF können Sie danach direkt prüfen.
+          </p>
+          <button
+            type="button"
+            className="btn btn--primary btn--block"
+            disabled={busy}
+            onClick={() => void createDemo()}
+          >
+            {busy ? 'Erstellt …' : 'Demo-Protokoll erstellen'}
+          </button>
+          {demoError ? <p className="hint">{demoError}</p> : null}
         </details>
 
         <h2 className="section-title">Datenschutz</h2>
