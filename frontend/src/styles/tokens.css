@@ -144,7 +144,7 @@
   --size-textarea-min-height: 120px;
 }
 
-/* ---------- Harbour (dunkel): explizit per data-theme oder nach Systemeinstellung ---------- */
+/* ---------- Harbour (dunkel): nur bei bewusster Umschaltung per data-theme ---------- */
 [data-theme="dark"] {
   --theme-current-color-primary: #e8eef8;
   --theme-current-color-primary-90: #d3ddef;
@@ -197,61 +197,6 @@
   --theme-current-color-transparentize-20: rgba(0, 0, 0, 0.3);
   --theme-current-color-transparentize-30: rgba(0, 0, 0, 0.4);
   --theme-current-color-transparentize-50: rgba(0, 0, 0, 0.6);
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --theme-current-color-primary: #e8eef8;
-    --theme-current-color-primary-90: #d3ddef;
-    --theme-current-color-primary-80: #b7c7e0;
-    --theme-current-color-primary-70: #9fb5d8;
-    --theme-current-color-primary-60: #8fb0ea;
-    --theme-current-color-primary-50: #6d8cc0;
-    --theme-current-color-primary-40: #44628f;
-    --theme-current-color-primary-30: #2c4670;
-    --theme-current-color-primary-20: #1f3557;
-    --theme-current-color-primary-10: #16263f;
-    --theme-current-color-primary-fluor: #6f9cff;
-
-    --theme-current-color-accent: #4aa3ec;
-
-    --theme-current-color-background-main: #0d1829;
-    --theme-current-color-background-framed: #08111f;
-    --theme-current-color-background-brand: #08111f;
-    --theme-current-color-background-glass: rgba(8, 17, 31, 0.55);
-
-    --theme-current-color-text-regular: #eef2f8;
-    --theme-current-color-text-medium: #9aa8bd;
-    --theme-current-color-text-disabled: #56637a;
-    --theme-current-color-text-contrast: #0b1f3a;
-    --theme-current-color-text-brand: #ffffff;
-    --theme-current-color-text-success: #8fe3c4;
-    --theme-current-color-text-warning: #ffd29a;
-    --theme-current-color-text-alert: #ffb3b8;
-    --theme-current-color-text-accent: #7cbcf2;
-    --theme-current-color-text-info: #b7c7e0;
-
-    --theme-current-color-component-border: #2a3a55;
-    --theme-current-color-component-border-focus: #e8eef8;
-    --theme-current-color-component-border-soft: #1c2a41;
-    --theme-current-color-component-border-disabled: #223149;
-    --theme-current-color-component-background-disabled: #1a2638;
-
-    --theme-current-color-separator: #22314a;
-    --theme-current-color-separator-medium: #18243a;
-    --theme-current-color-separator-strong: #56637a;
-
-    --theme-current-color-status-success-background: #12382f;
-    --theme-current-color-status-warning-background: #3d2a10;
-    --theme-current-color-status-alert-background: #3f1a20;
-    --theme-current-color-status-info-background: #172b4f;
-
-    --theme-current-color-sidebar-background: #0a1424;
-
-    --theme-current-color-transparentize-10: rgba(0, 0, 0, 0.2);
-    --theme-current-color-transparentize-20: rgba(0, 0, 0, 0.3);
-    --theme-current-color-transparentize-30: rgba(0, 0, 0, 0.4);
-    --theme-current-color-transparentize-50: rgba(0, 0, 0, 0.6);
-  }
 }
 
 /* ---------- Teil 2: App-Aliase ---------- */
