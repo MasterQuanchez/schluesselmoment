@@ -55,7 +55,8 @@ export type IconName =
   | 'bell'
   | 'mail'
   | 'smoke'
-  | 'fence';
+  | 'fence'
+  | 'info';
 
 const paint: AttributeDef = {
   id: 'paint',

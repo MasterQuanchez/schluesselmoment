@@ -255,6 +255,42 @@
   border-color: var(--c-primary);
   color: var(--c-text-on-primary);
 }
+.chip-row {
+  display: inline-flex;
+  align-items: stretch;
+}
+.chip-row > .chip {
+  border-right: 0;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.chip__info {
+  min-width: var(--tap-chip);
+  min-height: var(--tap-chip);
+  padding: 0 8px;
+  border: 1.5px solid var(--c-border);
+  border-left: 0;
+  border-radius: 0 var(--r-pill) var(--r-pill) 0;
+  background: var(--c-surface);
+  color: var(--c-text-muted);
+}
+.chip-row--open > .chip,
+.chip-row--open > .chip__info {
+  border-style: dashed;
+  border-color: var(--theme-current-color-status-warning);
+}
+.chip-row--nudge {
+  animation: chip-nudge 400ms ease;
+}
+@keyframes chip-nudge {
+  0%,
+  100% {
+    transform: none;
+  }
+  40% {
+    transform: scale(1.06);
+  }
+}
 
 /* Karten & Listen */
 .card {
@@ -267,6 +303,52 @@
 .card--defect {
   border-color: var(--c-defect-mark);
   border-left-width: 5px;
+}
+button.card--summary {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.one-line {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sheet-root {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  background: var(--theme-current-color-transparentize-50);
+}
+.sheet {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 480px);
+  max-height: 88vh;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 16px calc(16px + env(safe-area-inset-bottom));
+  background: var(--c-surface);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  box-shadow: var(--shadow-elevation-30);
 }
 .list {
   list-style: none;

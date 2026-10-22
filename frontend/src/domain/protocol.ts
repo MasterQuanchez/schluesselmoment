@@ -180,9 +180,13 @@ export function updateDefect(room: Room, checkId: string, patch: Partial<Room['d
 
 export function setDetail(room: Room, checkId: string, attrId: string, value: string | null): Room {
   const cur = { ...(room.details[checkId] ?? {}) };
-  if (value === null || cur[attrId] === value) delete cur[attrId];
+  const removing = value === null || cur[attrId] === value;
+  if (removing) delete cur[attrId];
   else cur[attrId] = value;
-  return { ...room, details: { ...room.details, [checkId]: cur } };
+  let next: Room = { ...room, details: { ...room.details, [checkId]: cur } };
+  // Choosing a detail means this one element was looked at. A defect stays a defect.
+  if (!removing && (next.checks[checkId] ?? 'open') === 'open') next = setCheck(next, checkId, 'ok');
+  return next;
 }
 
 /** Schnellauswahl-Begriff an einen Text anhängen. Doppelte Begriffe werden nicht erneut angehängt. */

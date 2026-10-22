@@ -37,6 +37,7 @@ const PATHS: Record<string, string> = {
   mail: 'M3 6h18v12H3zM3 6l9 7 9-7',
   smoke: 'M12 12a3 3 0 100-.01M5 9a8 8 0 0114 0M7 19h10',
   fence: 'M4 20V7l2-2 2 2v13M10 20V7l2-2 2 2v13M16 20V7l2-2 2 2v13M3 11h18M3 16h18',
+  info: 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 11v5M12 8v.01',
 };
 
 export type IconKey = keyof typeof PATHS;

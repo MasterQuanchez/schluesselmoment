@@ -6,10 +6,19 @@ import fs from 'node:fs';
 import { chromium, devices } from 'playwright';
 
 const SP = process.env.SP ?? './test-results';
-fs.mkdirSync(`${SP}/shots`, { recursive: true });
-const shot = (p, n) => p.screenshot({ path: `${SP}/shots/${n}.png`, fullPage: false });
+const deviceName = process.env.DEVICE ?? 'Pixel 7';
+const tag = deviceName.toLowerCase().replace(/\s+/g, '');
+fs.mkdirSync(SP, { recursive: true });
+const shot = (p, n) => p.screenshot({ path: `${SP}/${tag}-${n}.png`, fullPage: false });
 const browser = await chromium.launch();
-const ctx = await browser.newContext({ ...devices['Pixel 7'], acceptDownloads: true, locale: 'de-DE' });
+const device = devices[deviceName];
+if (!device) throw new Error(`Unbekanntes Gerät: ${deviceName}`);
+const ctx = await browser.newContext({
+  ...device,
+  colorScheme: 'dark',
+  acceptDownloads: true,
+  locale: 'de-DE',
+});
 const page = await ctx.newPage();
 const errors = [];
 page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
@@ -17,6 +26,14 @@ page.on('console', (m) => {
   if (m.type() === 'error') errors.push(`console: ${m.text()}`);
 });
 await page.goto('http://localhost:4173/#/mehr');
+const bg = await page.evaluate(() =>
+  getComputedStyle(document.documentElement)
+    .getPropertyValue('--theme-current-color-background-main')
+    .trim()
+    .toLowerCase(),
+);
+console.log('Gerät:', deviceName, 'Hintergrund:', bg);
+if (bg !== '#ffffff' && bg !== '#fff') errors.push(`Theme nicht hell: ${bg}`);
 await page.getByLabel('Mein Name', { exact: false }).fill('Nina');
 await page.getByPlaceholder('z. B. Silikon im Bad erneuern').fill('Zählerschrank verschmutzt');
 await page.getByRole('button', { name: 'Begriff hinzufügen' }).click();
@@ -43,7 +60,7 @@ await page.getByRole('heading', { name: 'Räume' }).waitFor();
 await shot(page, '03-raeume');
 const roomCount = await page.locator('.list li').count();
 console.log('Räume:', roomCount);
-// Flur: keine Mängel
+// Flur: keine Mängel, zwei Details über das Sheet, Rest einzeln
 await page.getByRole('link', { name: 'Weiter: Flur' }).click();
 await page.getByRole('button', { name: 'Keine Mängel' }).click();
 async function tapAllOpen() {
@@ -53,13 +70,27 @@ async function tapAllOpen() {
     await o.first().click();
   }
 }
-// Ohne Einzelbestätigung darf der Raum NICHT abschließbar sein
-await page.getByRole('button', { name: 'Flur abschließen' }).click();
-await page.getByText('Bitte noch erledigen:').waitFor();
+await page.getByText('Bitte jeden Punkt einmal antippen.').waitFor();
+await page.getByRole('button', { name: /Noch \d+ offen/ }).waitFor();
+await shot(page, 'sm11-offen');
+await page.getByRole('button', { name: 'Details zu Decke' }).click();
+const decke = page.getByRole('dialog');
+await decke.getByRole('heading', { name: 'Decke' }).waitFor();
+await shot(page, 'sm11-sheet');
+await decke.getByRole('button', { name: 'Neu', exact: true }).click();
+await decke.getByRole('button', { name: 'Fertig', exact: true }).click();
+await page.getByRole('button', { name: 'Details zu Boden' }).click();
+const boden = page.getByRole('dialog');
+await boden.getByRole('button', { name: 'Parkett', exact: true }).click();
+await boden.getByRole('button', { name: 'Fertig', exact: true }).click();
+await page.locator('[data-check="ceiling"] .chip[data-state="ok"]').waitFor();
+await page.locator('[data-check="floor"] .chip[data-state="ok"]').waitFor();
 await tapAllOpen();
 await shot(page, '04-flur-alle-bestaetigt');
-await page.getByRole('button', { name: 'Flur abschließen' }).click();
-// Küche: Mix wie im Screenshot, Backofen-Mangel mit 2 Fotos
+await page.getByRole('button', { name: /Flur fertig – weiter/ }).waitFor();
+await shot(page, 'sm11-fertig');
+await page.getByRole('button', { name: /Flur fertig – weiter/ }).click();
+// Küche: Mix wie im Screenshot, Backofen-Mangel mit 2 Fotos im Sheet
 await page.getByRole('heading', { name: 'Küche', level: 1 }).waitFor();
 await page.getByRole('button', { name: /^Wände:/ }).click();
 await page.getByRole('button', { name: /^Tür\/Rahmen:/ }).click();
@@ -67,35 +98,33 @@ await page.getByRole('button', { name: /^Steckdosen\/Schalter:/ }).click();
 await shot(page, '05-kueche-schnellcheck');
 await page.getByRole('button', { name: /^Backofen innen:/ }).click();
 await page.getByRole('button', { name: /^Backofen innen:/ }).click();
-// Abschließen ohne alles → Hinweise
-await page.getByRole('button', { name: 'Küche abschließen' }).click();
-await page.getByText('Bitte noch erledigen:').waitFor();
-await shot(page, '06-kueche-hinweise');
+await page.getByRole('button', { name: /Noch \d+ Punkte zu klären/ }).click();
+await page.getByRole('dialog').getByRole('heading', { name: 'Backofen innen' }).waitFor();
+await page.getByRole('dialog').getByRole('button', { name: 'Fertig', exact: true }).click();
+await page.getByText('Bitte noch erledigen:').waitFor({ state: 'hidden' });
 await page.getByRole('button', { name: 'Keine Mängel' }).click(); // sollte abgelehnt werden (Mangel markiert)
 await page.getByText('Es ist noch ein Mangel markiert').waitFor();
-// restliche offenen Punkte: alle offenen Chips einmal tippen
-for (;;) {
-  const open = page.locator('.chips .chip[data-state="open"]');
-  if ((await open.count()) === 0) break;
-  await open.first().click();
-}
-const defect = page.locator('section.card--defect');
+await tapAllOpen();
+await page.getByRole('button', { name: /Mangel: Backofen innen/ }).click();
+const defect = page.getByRole('dialog');
 await defect.locator('.chip--phrase', { hasText: 'Backofen verschmutzt' }).click();
-await defect.locator('textarea').press('End');
-await defect.locator('textarea').pressSequentially(', eingebrannte Fettreste');
+await defect.getByLabel('Mangel beschreiben').press('End');
+await defect.getByLabel('Mangel beschreiben').pressSequentially(', eingebrannte Fettreste');
 await defect
   .locator('input[type=file]')
   .setInputFiles([`tests/e2e/fixtures/foto1.jpg`, `tests/e2e/fixtures/foto2.jpg`]);
 await defect.locator('.thumb img').nth(1).waitFor();
-await page.locator('.chip--phrase', { hasText: 'Besenrein' }).last().click();
-await page.locator('.chip--phrase', { hasText: 'Normale Abnutzung' }).last().click();
-await page.locator('.chip--phrase', { hasText: 'Zählerschrank verschmutzt' }).last().click();
+await shot(page, 'sm11-mangel');
+await defect.getByRole('button', { name: 'Fertig', exact: true }).click();
+await page.locator('.chip--phrase', { hasText: 'Besenrein' }).click();
+await page.locator('.chip--phrase', { hasText: 'Normale Abnutzung' }).click();
+await page.locator('.chip--phrase', { hasText: 'Zählerschrank verschmutzt' }).click();
 await page.getByRole('heading', { name: 'Schnellcheck' }).scrollIntoViewIfNeeded();
 await shot(page, '07-kueche-mangel');
-await defect.scrollIntoViewIfNeeded();
+await page.getByRole('button', { name: /Mangel: Backofen innen/ }).scrollIntoViewIfNeeded();
 await shot(page, '08-kueche-mangel-fotos');
 console.log('Notiz:', await page.getByLabel('Notizen zum Raum').inputValue());
-await page.getByRole('button', { name: 'Küche abschließen' }).click();
+await page.getByRole('button', { name: /Küche fertig – weiter/ }).click();
 await page
   .waitForFunction(() => document.querySelector('h1')?.textContent?.trim() !== 'Küche', null, {
     timeout: 5000,
@@ -118,7 +147,9 @@ for (let i = 0; i < 20; i++) {
     await page.getByRole('button', { name: 'Handtuchhaken mehr' }).click();
   }
   if (title === 'Abschluss-Prüfungen') await shot(page, '09-abschlusspruefungen');
-  await page.getByRole('button', { name: `${title} abschließen` }).click();
+  await page
+    .getByRole('button', { name: new RegExp(`${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} fertig`) })
+    .click();
   await page.waitForFunction((t) => document.querySelector('h1')?.textContent?.trim() !== t, title);
 }
 await shot(page, '10-raeume-fertig');

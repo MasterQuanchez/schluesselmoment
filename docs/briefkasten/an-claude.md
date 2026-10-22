@@ -2,6 +2,16 @@
 
 <!-- Neue Einträge oben. Format: ## TT.MM. · SM-xx · Bahn X · Kurztitel -->
 
+## 22.10. · SM-11 · Bahn A · Element-Sheet, Details zählen
+
+Ergebnis: GRÜN
+Befehle: typecheck ✓ · test ✓ (23, davon 3 neue setDetail-Fälle) · lint ✓ (Exit 0, 2 Infos: Biome-Schema 2.4.0 vs CLI 2.6.2) · e2e ✓ Pixel 7 und iPhone 15, letzte Zeile jeweils „Fehler: keine“.
+Theme: `color-scheme: dark` im Browser, Token `--theme-current-color-background-main` bleibt `#fff`. Die System-Dunkel-Abfrage in `tokens.css` ist entfernt. `[data-theme=dark]` bleibt. `color-scheme=light` und D21 lagen schon in `540ddd2`.
+Verhalten: Ein gesetztes Detail setzt nur dieses offene Element auf OK (D22). Mangel bleibt Mangel. Kein Sammel-OK. Die Liste „Bitte noch erledigen“ ist weg. Offene Chips haben einen gestrichelten Warn-Rand. Der untere Knopf sagt „Noch N offen“ bzw. „Noch N Punkte zu klären“ und springt zum ersten offenen Chip oder öffnet den ersten unvollständigen Mangel. Fertig: „Raum fertig – weiter zu …“.
+Klickpfad: Flur Decke „Neu“ und Boden „Parkett“ über das Sheet, danach ✓. Küche: Mangel Backofen im Sheet mit Text und 2 Fotos. Screenshots `frontend/test-results/sm11/` (gitignored): `pixel7-` und `iphone15-` plus `sm11-offen`, `sm11-sheet`, `sm11-mangel`, `sm11-fertig`. Kein echtes Gerät.
+Nicht eingecheckt (parallel, nicht SM-11): Demo-Protokoll, PDF-Betreff, Home/Einstellungen/Basis.
+Offen: Biome-Schema nicht migriert. pytest und pii_scan weiter ohne lokales Python.
+
 ## 22.10. · SM-13 · Bahn B · App-Icon F7 „Breakout tick“
 
 Prompt-ID: SM-13 (vorher als SM-09 entworfen; SM-09 = UI-Übernahme aus Prompt 01)

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useRef, useState } from 'react';
 import { CHECKS, INVENTORY, RULES } from '@/domain/catalog';
 import {
   appendPhrase,
@@ -9,10 +9,7 @@ import {
   markHasDefects,
   markNoDefects,
   phrasesFor,
-  roomIssues,
   roomProgress,
-  setDetail,
-  updateDefect,
 } from '@/domain/protocol';
 import type { CheckState, Protocol, Room } from '@/domain/schema';
 import { navigate } from '@/router';
@@ -20,7 +17,7 @@ import { useProtocol } from '@/storage/useProtocol';
 import { useSettings } from '@/storage/useSettings';
 import { Icon } from '@/ui/Icon';
 import { Loading, StepNav, Stepper, TopBar, useToast } from '@/ui/kit';
-import { PhotoStrip } from '@/ui/Photos';
+import { ElementSheet } from './ElementSheet';
 
 const STATE_LABEL: Record<CheckState, string> = { open: 'nicht geprüft', ok: 'in Ordnung', defect: 'Mangel' };
 
@@ -29,11 +26,9 @@ export function RoomScreen({ id, roomId }: { id: string; roomId: string }) {
   const { settings } = useSettings();
   const custom = settings?.customPhrases ?? [];
   const [toast, showToast] = useToast();
-  const [showIssues, setShowIssues] = useState(false);
-  // roomId is a prop. Biome 2.6 treats it as a stable outer value and would drop it,
-  // which would keep the "Bitte noch erledigen" list when the user opens another room.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reset the hint list on room change
-  useEffect(() => setShowIssues(false), [roomId]);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [nudgeId, setNudgeId] = useState<string | null>(null);
+  const infoRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   if (state.status !== 'ready') return <Loading state={state} />;
   const p = state.protocol;
@@ -42,7 +37,6 @@ export function RoomScreen({ id, roomId }: { id: string; roomId: string }) {
   const locked = p.status !== 'draft';
   const template = getTemplate(room);
   const progress = roomProgress(room);
-  const issues = roomIssues(room);
   const defectIds = Object.entries(room.checks)
     .filter(([, s]) => s === 'defect')
     .map(([k]) => k);
@@ -50,29 +44,53 @@ export function RoomScreen({ id, roomId }: { id: string; roomId: string }) {
   const setRoom = (fn: (r: Room) => Room) =>
     update((proto: Protocol) => ({ ...proto, rooms: proto.rooms.map((r) => (r.id === roomId ? fn(r) : r)) }));
 
+  const openIds = template.checks.filter((checkId) => (room.checks[checkId] ?? 'open') === 'open');
+  const incompleteDefects = defectIds.filter((checkId) => {
+    const defect = room.defects[checkId];
+    return !defect?.description.trim() || defect.photoIds.length < RULES.minPhotosPerDefect;
+  });
+  const idx = p.rooms.findIndex((r) => r.id === roomId);
+  const nextRoom = p.rooms[idx + 1];
+  const ready = openIds.length === 0 && incompleteDefects.length === 0;
+
   const onNoDefects = () => {
     const res = markNoDefects(room);
     if (!res.ok) return showToast(res.reason);
     setRoom(() => res.room);
-    if (issues.length) showToast('Gut. Jetzt jeden Punkt einzeln mit ✓ bestätigen.');
+  };
+
+  const focusFirstGap = () => {
+    const defectId = incompleteDefects[0];
+    if (defectId) {
+      setOpenId(defectId);
+      return;
+    }
+    const checkId = openIds[0];
+    if (!checkId) return;
+    document
+      .querySelector(`[data-check="${checkId}"]`)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setNudgeId(checkId);
+    window.setTimeout(() => setNudgeId((cur) => (cur === checkId ? null : cur)), 700);
   };
 
   const onComplete = () => {
     const res = completeRoom(room);
     if (!res.ok) {
-      setShowIssues(true);
-      showToast('Noch nicht vollständig – siehe Hinweise oben.');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      focusFirstGap();
       return;
     }
     setRoom(() => res.room);
-    const idx = p.rooms.findIndex((r) => r.id === roomId);
-    const next =
+    const following =
       p.rooms.slice(idx + 1).find((r) => !r.completedAt) ??
       p.rooms.find((r) => !r.completedAt && r.id !== roomId);
     showToast(`✓ ${room.label} erledigt`);
-    navigate(next ? { name: 'room', id, roomId: next.id } : { name: 'rooms', id });
+    navigate(following ? { name: 'room', id, roomId: following.id } : { name: 'rooms', id });
   };
+
+  const finishLabel = nextRoom
+    ? `${room.label} fertig – weiter zu ${nextRoom.label}`
+    : `${room.label} fertig – zur Übersicht`;
 
   return (
     <>
@@ -89,17 +107,6 @@ export function RoomScreen({ id, roomId }: { id: string; roomId: string }) {
             <span style={{ width: `${(progress.done / Math.max(1, progress.total)) * 100}%` }} />
           </div>
         </div>
-
-        {showIssues && issues.length > 0 ? (
-          <div className="notice" role="alert">
-            <b>Bitte noch erledigen:</b>
-            <ul className="issues">
-              {issues.map((i) => (
-                <li key={`${i.checkId}-${i.message}`}>{i.message}</li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
 
         <section aria-labelledby="h-decision">
           <h2 id="h-decision" className="section-title">
@@ -125,6 +132,7 @@ export function RoomScreen({ id, roomId }: { id: string; roomId: string }) {
               <Icon name="x" size={22} /> Mängel
             </button>
           </div>
+          {openIds.length > 0 ? <p className="hint">Bitte jeden Punkt einmal antippen.</p> : null}
         </section>
 
         <section aria-labelledby="h-quick">
@@ -138,27 +146,45 @@ export function RoomScreen({ id, roomId }: { id: string; roomId: string }) {
             {template.checks.map((checkId) => {
               const def = CHECKS[checkId];
               const s = room.checks[checkId] ?? 'open';
+              const label = def?.label ?? checkId;
               return (
-                <button
+                <div
                   key={checkId}
-                  type="button"
-                  className="chip"
-                  data-state={s}
-                  disabled={locked}
-                  onClick={() => setRoom((r) => cycleCheck(r, checkId))}
-                  aria-label={`${def?.label ?? checkId}: ${STATE_LABEL[s]}. Tippen zum Ändern.`}
+                  data-check={checkId}
+                  className={`chip-row${s === 'open' ? ' chip-row--open' : ''}${nudgeId === checkId ? ' chip-row--nudge' : ''}`}
                 >
-                  <span className="chip__mark">
-                    {s === 'ok' ? (
-                      <Icon name="check" size={14} />
-                    ) : s === 'defect' ? (
-                      <Icon name="alert" size={13} />
-                    ) : (
-                      <Icon name={def?.icon ?? 'box'} size={16} />
-                    )}
-                  </span>
-                  {def?.label ?? checkId}
-                </button>
+                  <button
+                    type="button"
+                    className="chip"
+                    data-state={s}
+                    disabled={locked}
+                    onClick={() => setRoom((r) => cycleCheck(r, checkId))}
+                    aria-label={`${label}: ${STATE_LABEL[s]}. Tippen zum Ändern.`}
+                  >
+                    <span className="chip__mark">
+                      {s === 'ok' ? (
+                        <Icon name="check" size={14} />
+                      ) : s === 'defect' ? (
+                        <Icon name="alert" size={13} />
+                      ) : (
+                        <Icon name={def?.icon ?? 'box'} size={16} />
+                      )}
+                    </span>
+                    {label}
+                  </button>
+                  <button
+                    type="button"
+                    className="chip__info"
+                    aria-label={`Details zu ${label}`}
+                    disabled={locked}
+                    ref={(node) => {
+                      infoRefs.current[checkId] = node;
+                    }}
+                    onClick={() => setOpenId(checkId)}
+                  >
+                    <Icon name="info" size={16} />
+                  </button>
+                </div>
               );
             })}
           </div>
@@ -168,55 +194,20 @@ export function RoomScreen({ id, roomId }: { id: string; roomId: string }) {
         {defectIds.map((checkId) => {
           const def = CHECKS[checkId];
           const d = room.defects[checkId] ?? emptyDefect();
+          const label = def?.label ?? checkId;
           return (
-            <section key={checkId} className="card card--defect stack" aria-label={`Mangel ${def?.label}`}>
-              <div className="row">
-                <Icon name="alert" />
-                <b className="grow">Mangel: {def?.label}</b>
-                <span
-                  className={
-                    d.photoIds.length >= RULES.minPhotosPerDefect ? 'badge badge--ok' : 'badge badge--defect'
-                  }
-                >
-                  {d.photoIds.length}/{RULES.minPhotosPerDefect} Fotos
-                </span>
-              </div>
-              {def?.hint ? <p className="hint">{def.hint}</p> : null}
-              <textarea
-                className="textarea"
-                placeholder="Was genau? Wo? Wie groß?"
-                value={d.description}
-                disabled={locked}
-                onChange={(e) => {
-                  const v = e.currentTarget.value;
-                  setRoom((r) => updateDefect(r, checkId, { description: v }));
-                }}
-              />
-              <div className="chips">
-                {phrasesFor(room, custom).map((ph) => (
-                  <button
-                    key={ph}
-                    type="button"
-                    className="chip chip--phrase"
-                    disabled={locked}
-                    onClick={() =>
-                      setRoom((r) =>
-                        updateDefect(r, checkId, { description: appendPhrase(d.description, ph) }),
-                      )
-                    }
-                  >
-                    {ph}
-                  </button>
-                ))}
-              </div>
-              <PhotoStrip
-                protocolId={id}
-                ids={d.photoIds}
-                disabled={locked}
-                onError={showToast}
-                onChange={(photoIds) => setRoom((r) => updateDefect(r, checkId, { photoIds }))}
-              />
-            </section>
+            <button
+              key={checkId}
+              type="button"
+              className="card card--defect card--summary"
+              onClick={() => setOpenId(checkId)}
+            >
+              <b>Mangel: {label}</b>
+              <span className="one-line">{d.description.trim() || 'Noch ohne Beschreibung'}</span>
+              <span className="badge">
+                {d.photoIds.length}/{RULES.minPhotosPerDefect} Fotos
+              </span>
+            </button>
           );
         })}
 
@@ -299,51 +290,42 @@ export function RoomScreen({ id, roomId }: { id: string; roomId: string }) {
             </div>
           </section>
         ) : null}
-
-        <details className="more">
-          <summary>
-            <Icon name="chevronDown" /> Details (optional): Anstrich, Belag, Verglasung …
-          </summary>
-          <div className="stack">
-            {template.checks
-              .map((c) => CHECKS[c])
-              .filter((def) => def?.attributes?.length)
-              .map((def) =>
-                def ? (
-                  <div key={def.id} className="card">
-                    <b>{def.label}</b>
-                    {def.attributes?.map((attr) => (
-                      <div key={attr.id} className="attr-row">
-                        <b className="muted">{attr.label}</b>
-                        {attr.options.map((o) => (
-                          <button
-                            key={o.id}
-                            type="button"
-                            className="chip chip--option"
-                            disabled={locked}
-                            aria-pressed={room.details[def.id]?.[attr.id] === o.id}
-                            onClick={() => setRoom((r) => setDetail(r, def.id, attr.id, o.id))}
-                          >
-                            {o.label}
-                          </button>
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                ) : null,
-              )}
-          </div>
-        </details>
       </main>
       {locked ? null : (
         <div className="bottombar">
           <div className="bottombar__inner">
-            <button type="button" className="btn btn--primary btn--block" onClick={onComplete}>
-              <Icon name="check" /> {room.label} abschließen
+            <button
+              type="button"
+              className={`btn btn--block${ready ? ' btn--primary' : ''}`}
+              onClick={ready ? onComplete : focusFirstGap}
+            >
+              {ready ? <Icon name="check" /> : null}
+              {ready
+                ? finishLabel
+                : incompleteDefects.length > 0
+                  ? `Noch ${incompleteDefects.length} Punkte zu klären`
+                  : `Noch ${openIds.length} offen`}
             </button>
           </div>
         </div>
       )}
+      {openId ? (
+        <ElementSheet
+          key={openId}
+          room={room}
+          checkId={openId}
+          locked={locked}
+          custom={custom}
+          protocolId={id}
+          onChange={setRoom}
+          onError={showToast}
+          onClose={() => {
+            const checkId = openId;
+            setOpenId(null);
+            infoRefs.current[checkId]?.focus();
+          }}
+        />
+      ) : null}
       {toast}
     </>
   );

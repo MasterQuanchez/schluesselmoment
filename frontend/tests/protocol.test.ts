@@ -20,6 +20,7 @@ import {
   protocolIssues,
   requiredSigners,
   sealProtocol,
+  setDetail,
   startSigning,
   updateDefect,
 } from '@/domain/protocol';
@@ -120,6 +121,28 @@ describe('Schnellerfassung', () => {
   it('Keine Mängel ist gesperrt, solange ein Mangel markiert ist', () => {
     const r = cycleCheck(cycleCheck(room(), 'floor'), 'floor');
     expect(markNoDefects(r).ok).toBe(false);
+  });
+
+  it('Detail an einem offenen Element setzt nur dieses auf OK', () => {
+    const r = room();
+    const next = setDetail(r, 'ceiling', 'paint', 'new');
+    expect(next.checks.ceiling).toBe('ok');
+    expect(next.details.ceiling?.paint).toBe('new');
+    expect(Object.entries(next.checks).filter(([id, s]) => id !== 'ceiling' && s !== 'open')).toHaveLength(0);
+  });
+
+  it('Detail an einem Mangel lässt den Mangel stehen', () => {
+    const defect = cycleCheck(cycleCheck(room(), 'floor'), 'floor');
+    const next = setDetail(defect, 'floor', 'type', 'parquet');
+    expect(next.checks.floor).toBe('defect');
+    expect(next.details.floor?.type).toBe('parquet');
+  });
+
+  it('Detail entfernen ändert den Status nicht', () => {
+    const marked = setDetail(room(), 'ceiling', 'paint', 'new');
+    const cleared = setDetail(marked, 'ceiling', 'paint', 'new');
+    expect(cleared.checks.ceiling).toBe('ok');
+    expect(cleared.details.ceiling?.paint).toBeUndefined();
   });
 
   it('Mangel braucht Beschreibung und Mindestanzahl Fotos', () => {

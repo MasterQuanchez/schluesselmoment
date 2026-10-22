@@ -53,7 +53,7 @@ v1 (Nov./Dez. 2025, React/Vite) wird neu aufgebaut: der API-Key lag im Bundle, l
 ## Acceptance Criteria
 
 - AC1: Given a new protocol with features (2 rooms, Einbauküche, Balkon), when rooms are generated, then the list is Flur, Küche, Bad, Zimmer 1, Zimmer 2, Balkon, Eingangstür & Briefkasten, Abschluss-Prüfungen, and the Balkon has no Fenster/Tür/Heizkörper.
-- AC2: Given a room, when the user taps „Keine Mängel“, then no check changes state and the room cannot be completed until every check is ✓ or ⚠.
+- AC2: Given a room, when the user taps „Keine Mängel“, then no check changes state and the room cannot be completed until every check is ✓ or ⚠; ein Detail zu setzen bestätigt nur dieses Element.
 - AC3: Given a chip, when tapped repeatedly, then it cycles open → OK → Mangel → open, and the defect data survives a reset (no data loss from mis-taps).
 - AC4: Given a check marked Mangel, when the user tries to complete the room, then it is blocked until a description and ≥ 2 photos exist.
 - AC5: Given a Schnellauswahl term, when tapped, then it is appended to the note (no duplicates) and the text remains editable; own terms from „Mehr“ appear in every room on this device.
@@ -83,3 +83,4 @@ Siehe `docs/app/DECISIONS.md` (D1–D16).
 ## Implementation Notes
 
 - 2026-10-22 (Orchestrator/Claude): Kern 2.0.0-alpha.2 gebaut und geprüft. 17 Unit-Tests grün; vollständiger Klickpfad (Pixel 7, strikte CSP) grün: AC1–AC8, AC10 (Logik + Anzeige), AC12, AC13 verifiziert. AC9 nur Fallback (Download) geprüft – Teilen-Menü braucht echtes Android-Gerät. AC11 offen bis SM-01 (Service Worker wurde lokal nicht gebaut). Prüfumgebung: TS 6, React 19.2, Zod 3.25 (Produktion: Zod 4 – in SM-01 prüfen), pdf-lib 1.17, esbuild statt Vite 8 (Registry gesperrt).
+- 2026-10-22 SM-11: `setDetail` setzt ein offenes Element auf OK, einen Mangel nicht. Element-Sheet statt der Detail-Liste unten. Hinweisbox „Bitte noch erledigen“ entfernt. AC2 ergänzt: ein Detail bestätigt nur dieses Element.
