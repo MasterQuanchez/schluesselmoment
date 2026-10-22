@@ -142,13 +142,11 @@ export function SettingsScreen() {
             Änderungen an der Standardliste kommen mit dem nächsten App-Update auf alle Geräte.
           </p>
           <div className="chips">
-            {Object.values(PHRASES)
-              .flat()
-              .map((p) => (
-                <span key={p} className="chip">
-                  {p}
-                </span>
-              ))}
+            {standardPhrases.map((p) => (
+              <span key={p} className="chip">
+                {p}
+              </span>
+            ))}
           </div>
         </details>
 
