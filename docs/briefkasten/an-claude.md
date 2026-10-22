@@ -2,6 +2,24 @@
 
 <!-- Neue Einträge oben. Format: ## TT.MM. · SM-xx · Bahn X · Kurztitel -->
 
+## 23.10. · SM-14 · Bahn E · Secret-Check
+
+Prompt-ID: SM-14
+Stand: nach `git pull`, SM-11 `4841aaf` und SM-12 `436c2ef` auf `origin/main`. Nur geprüft, frischer `npm run build`.
+
+| Prüfung | Fund | Stelle |
+|---|---|---|
+| Schlüssel-Muster, Git-Historie | ja, nur Test-Platzhalter | `tests/hooks/run_tests.sh:361`, in allen 7 Commits seit `9133eee`. Hook-Test für `redact-secrets.sh`. |
+| Schlüssel-Muster, Arbeitsbaum ohne `node_modules` | ja, dieselbe Stelle | `tests/hooks/run_tests.sh:361`. Auf der Platte nur `.env.example` und `frontend/.env.example`. |
+| `.env` / `.env.local` getrackt | nein | `git ls-files`: `.env.example`, `frontend/.env.example`, `frontend/src/vite-env.d.ts`, `.cursor/skills/deploying-streamlit-in-snowflake/templates/environment.yml` |
+| `.gitignore` deckt `.env*` ab | ja, Lücke `.envrc` | `.env` Zeile 15, `.env.local` Zeile 16, `.env.*` Zeile 71, Ausnahme `!.env.example` Zeile 72. `.envrc` und `.envfoo` sind nicht ignoriert. |
+| `frontend/dist`: generativelanguage | nein | 20 Dateien nach dem Build |
+| `frontend/dist`: `VITE_`-Wert | nein | kein Treffer. Dasselbe Schlüssel-Muster über `dist`: kein Treffer. |
+| `frontend/dist`: fremde Domain | ja, nur Bibliotheks-Strings | `workbox-2fbc6a65.js:1` bit.ly (Warntext). `assets/generate-DgWYgCMI.js:38` github.com (pdf-lib-Producer). `assets/index-DwQr__xV.js:1` react.dev (Fehler-URL), Zeile 8 www.w3.org (SVG-Namespace), Zeile 63 json-schema.org (Schema-Kennung). Kein Abruf. |
+| `pii_scan` | ja | `python` ist der Store-Stub (Exit 9009). `py -3` ist Python 3.14.2. Ohne Pfad Exit 2. `py -3 scripts/pii_scan.py .` Exit 1: `frontend/package-lock.json:2464` (corp-id, Integrity-Hash), `frontend/package-lock.json:3970` (email im Deprecated-Text), `.cursor/skills/knowledge-audit/SKILL.md:58` (user-path, Platzhalter in der Prüftabelle), `.cursor/skills/lookup-user-by-gid-or-email/SKILL.md:15` (email, Beispiel in der Skill-Doku). Kein `redaction-config.local.json`. |
+
+Offene Punkte: kein Live-Schlüssel. Die vier PII-Treffer liegen im Lockfile und in der Skill-Doku.
+
 ## 23.10. · SM-13a · Bahn B · Icon in der App
 
 Prompt-ID: SM-13a (Schritte 1–3; Schritt 0 ist `c1a75cb`)
