@@ -28,6 +28,8 @@
 | D26 | 23.10.2026 | Gesperrte Zustände nennen Element und Grund | „Noch N Punkte“ sagt nicht, was fehlt. Der Knopf nennt den ersten offenen Punkt, zum Beispiel „Wände: 1 Foto fehlt“. | Entschieden |
 | D27 | 23.10.2026 | Mangel-Vorschläge je Element, getrennt von den Zustandsbegriffen der Raum-Notiz | „Fachgerecht renoviert“ ist kein Mangel an der Wand. Eigene Begriffe bleiben in den Einstellungen. | Entschieden |
 | D28 | 23.10.2026 | Mangel-Fotos im PDF direkt beim Raum, Zählerfotos beim Zähler; kein Sammelanhang | Im Protokoll soll das Foto neben dem Mangel stehen. | Entschieden |
+| D29 | 23.10.2026 | Senden zweistufig wegen Safari-Nutzeraktion | iOS Safari startet das Teilen-Menü nur direkt in der Nutzeraktion. Deshalb erst „PDF vorbereiten“, dann „Per E-Mail senden“ ohne await davor im Klick. | Entschieden |
+| D30 | 23.10.2026 | Installationshinweis iOS / Android-Install-Angebot | Nicht installiertes iOS-Safari bekommt einen wegklickbaren Hinweis zum Home-Bildschirm. Android zeigt „App installieren“ nur, wenn der Browser `beforeinstallprompt` schickt. | Entschieden |
 
 ## Offen
 
