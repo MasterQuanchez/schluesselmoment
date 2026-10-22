@@ -27,7 +27,7 @@ export default defineConfig({
       // Zugangsschutz (Cloudflare Access) arbeitet mit Cookie → Manifest mit Cookie laden, sonst ist die PWA nicht installierbar
       useCredentials: true,
       injectRegister: false, // registriert in src/pwa.ts (Update-Hinweis statt stillem Reload)
-      includeAssets: ['icon.svg'],
+      includeAssets: ['favicon.ico', 'favicon.svg', 'apple-touch-icon-180x180.png'],
       manifest: {
         name: 'Schlüsselmoment – Übergabeprotokoll',
         short_name: 'Schlüsselmoment',
@@ -37,15 +37,17 @@ export default defineConfig({
         scope: '/',
         display: 'standalone',
         orientation: 'portrait',
-        background_color: '#FFFFFF',
+        background_color: '#07142B',
         theme_color: '#0B1F3A',
         icons: [
-          { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
-          { src: 'icon-maskable.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'maskable' },
+          { src: 'pwa-64x64.png', sizes: '64x64', type: 'image/png' },
+          { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: 'maskable-icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,woff2}'],
+        globPatterns: ['**/*.{js,css,html,svg,woff2,png,ico,webmanifest}'],
         navigateFallback: '/index.html',
         cleanupOutdatedCaches: true,
       },

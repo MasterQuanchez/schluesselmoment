@@ -2,6 +2,14 @@
 
 <!-- Neue Einträge oben. Format: ## TT.MM. · SM-xx · Bahn X · Kurztitel -->
 
+## 22.10. · SM-13 · Bahn B · App-Icon F7 „Breakout tick“
+
+Prompt-ID: SM-13 (vorher als SM-09 entworfen; SM-09 = UI-Übernahme aus Prompt 01)
+ACs: Icon-Dateien aus `icon/icons-f7/public/` nach `frontend/public/` kopiert (nicht neu gezeichnet). Platzhalter `icon.svg` und `icon-maskable.svg` gelöscht. Quellen `source-icon.svg` und `source-maskable.svg` nach `frontend/assets/brand/`. Ordner `icon/icons-f7/` gelöscht, nicht eingecheckt. `index.html` verweist auf favicon.ico, favicon.svg und apple-touch-icon. VitePWA: vier Manifest-Icons, `any` und `maskable` getrennt, `background_color` `#07142B`, `theme_color` `#0B1F3A`, Precache inkl. png/ico/webmanifest. `useCredentials: true` und `injectRegister: false` unverändert. `public/_headers` unberührt. Kein Logo-Platzhalter in Splash oder Leerzustand (SM-09), deshalb dort nichts geändert.
+Ergebnis: Build ✓. Test ✓ (23). `biome check vite.config.ts` ✓ (Exit 0, nur die bekannten Schema-Infos). `npm run lint` im ganzen Frontend ist rot wegen paralleler, nicht zu SM-13 gehörender Dateien (ElementSheet, RoomScreen, generate.ts, Tests) — nicht angefasst und nicht eingecheckt. `dist/manifest.webmanifest` listet 4 Icons (`any` und `maskable` getrennt). Alle Icon-Dateien liegen in `dist/` und in der Precache-Liste von `dist/sw.js` (png, ico, svg, webmanifest). Chrome `Page.getAppManifest`: `errors: []`, vier Icons geladen (64, 192, 512, maskable 512). Maskable: kein Strich außerhalb des inneren 80-Prozent-Kreises. Splash/Leerzustand ohne Logo, unverändert.
+Entscheidung: D24.
+Offene Punkte: iPhone merkt sich das Icon beim Installieren (SM-10) — App vom Home-Bildschirm löschen und neu hinzufügen. Untracked bleibt `icon/SM-09-app-icon.md` (Prompt-Kopie), nicht eingecheckt.
+
 ## 22.10. · SM-01 · Bahn D · Build/PWA geprüft
 
 Ergebnis: GELB

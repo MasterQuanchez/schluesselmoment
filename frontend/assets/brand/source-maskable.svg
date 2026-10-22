@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#173560"/><stop offset="1" stop-color="#07142B"/></linearGradient></defs>
+<rect width="512" height="512" fill="url(#bg)"/>
+<path d="M352.1 268.0 L352.1 356.1 L351.9 358.4 L351.6 360.4 L351.0 362.2 L350.1 363.8 L349.1 365.1 L347.7 366.2 L346.2 367.0 L344.4 367.6 L342.3 368.0 L340.1 368.1 L171.9 368.1 L169.7 368.0 L167.6 367.6 L165.8 367.0 L164.3 366.2 L162.9 365.1 L161.9 363.8 L161.0 362.2 L160.4 360.4 L160.1 358.4 L159.9 356.1 L159.9 248.0 L160.0 245.6 L160.3 243.4 L160.7 241.2 L161.4 239.0 L162.2 237.0 L163.2 235.1 L164.4 233.2 L165.7 231.4 L167.3 229.7 L169.0 228.1 L247.0 159.8 L248.8 158.4 L250.6 157.3 L252.4 156.5 L254.2 156.0 L256.0 155.9 L257.8 156.0 L259.6 156.5 L261.4 157.3 L263.2 158.4 L265.0 159.9 L312.0 201.2" fill="none" stroke="#FFFFFF" stroke-width="9.6" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M212.0 276.0 L243.7 307.8 L244.6 308.6 L245.4 309.2 L246.3 309.6 L247.2 309.8 L248.0 309.9 L248.9 309.9 L249.7 309.6 L250.6 309.2 L251.4 308.6 L252.3 307.9 L376.1 188.0" fill="none" stroke="#A9BCD6" stroke-width="11.2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
