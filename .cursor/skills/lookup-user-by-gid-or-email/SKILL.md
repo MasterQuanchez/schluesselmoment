@@ -12,7 +12,7 @@ description: >-
 ## Run lookup
 
 ```powershell
-& "$PWD\.cursor\skills\lookup-user-by-gid-or-email\scripts\Lookup-UserByGIDorEmail.ps1" -Email "user@siemens-energy.com"
+& "$PWD\.cursor\skills\lookup-user-by-gid-or-email\scripts\Lookup-UserByGIDorEmail.ps1" -Email "user@siemens-energy.com" # pii-scan: ignore
 & "$PWD\.cursor\skills\lookup-user-by-gid-or-email\scripts\Lookup-UserByGIDorEmail.ps1" -Gid "Z0047B4J"
 ```
 

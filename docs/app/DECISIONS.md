@@ -30,6 +30,10 @@
 | D28 | 23.10.2026 | Mangel-Fotos im PDF direkt beim Raum, Zählerfotos beim Zähler; kein Sammelanhang | Im Protokoll soll das Foto neben dem Mangel stehen. | Entschieden |
 | D29 | 23.10.2026 | Senden zweistufig wegen Safari-Nutzeraktion | iOS Safari startet das Teilen-Menü nur direkt in der Nutzeraktion. Deshalb erst „PDF vorbereiten“, dann „Per E-Mail senden“ ohne await davor im Klick. | Entschieden |
 | D30 | 23.10.2026 | Installationshinweis iOS / Android-Install-Angebot | Nicht installiertes iOS-Safari bekommt einen wegklickbaren Hinweis zum Home-Bildschirm. Android zeigt „App installieren“ nur, wenn der Browser `beforeinstallprompt` schickt. | Entschieden |
+| D31 | 23.10.2026 | Schriften nicht als data-URL einbetten (`assetsInlineLimit: 0`) | Die CSP erlaubt Schriften nur von der eigenen Adresse (`font-src 'self'`). Eingebettete data-URLs würden blockiert. | Entschieden |
+| D32 | 23.10.2026 | Python-Werkzeuge auf Windows über `py -3` | `python` ist hier der Store-Stub. In der CI ab SM-06. | Entschieden |
+
+D19/D20 bewusst nicht vergeben (SM-01).
 
 ## Offen
 

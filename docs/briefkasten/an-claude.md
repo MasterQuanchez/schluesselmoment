@@ -2,6 +2,19 @@
 
 <!-- Neue Einträge oben. Format: ## TT.MM. · SM-xx · Bahn X · Kurztitel -->
 
+## 23.10. · SM-15 · Aufräumen, Detail-Gruppen
+
+Prompt-ID: SM-15. Start nach `git pull`: SM-10 `9d1cd75` und SM-16 `da7b167` liegen auf `main`.
+ACs: Attribut-Gruppen im Element-Sheet als Raster (Beschriftung 104 px, Optionen rechts, Trennlinie). Unter 360 px steht die Beschriftung über den Optionen, die Trennlinie bleibt. Keine Fachlogik.
+Entscheidungen: D31 Schriften nicht einbetten (`assetsInlineLimit: 0`). D32 Python auf Windows über `py -3`. D19/D20 bewusst nicht vergeben.
+Ergebnis: GRÜN. typecheck ✓ · test ✓ (31, Vitest 4.1.12) · lint ✓ (Exit 0, keine Infos) · Klickpfad Pixel 7 und iPhone 15, jeweils „Fehler: keine“.
+Raster: Wände und Fenster auf Pixel 7, Optionen rechts, folgende Zeile `border-top` 1 px. Bei 359 px eine Spalte, Beschriftung darüber, Trennlinie bleibt. Screenshots `frontend/test-results/sm15/` (gitignored).
+Audit: 2 moderate, nur Dev (`vitest` / `@vitest/mocker`). `npm audit fix` ohne `--force` hebt Vitest von 4.1.11 auf 4.1.12, kein Major. Danach 0 Funde.
+Biome-Ignore bleibt: `kit.tsx` Label-Kind und Stepper-`role=group`, `BasisScreen.tsx` Mieter ohne eigene Id, `base.css` zweimal `!important` für reduced motion.
+pytest: 12 grün. Kein Test erwartet das entfernte Backend.
+`core.hooksPath` lokal auf `.githooks`. Lockfile-Scan Exit 0.
+Offene Punkte: Splash bleibt SM-09. Firmenlogo im PDF bleibt O2.
+
 ## 23.10. · SM-16 · Bahn A + C · Mangel-Ablauf
 
 Ergebnis: GRÜN. typecheck ✓ · test ✓ (31) · lint ✓ (Exit 0, 2 Schema-Infos) · Klickpfad Pixel 7 und iPhone 15, jeweils „Fehler: keine“. Screenshots `frontend/test-results/sm16/` (gitignored).

@@ -180,8 +180,8 @@ export function ElementSheet({
           <details className="more" open={detailsOpen} onToggle={(e) => setDetailsOpen(e.currentTarget.open)}>
             <summary>Details (optional): {def.attributes.map((attr) => attr.label).join(', ')}</summary>
             {def.attributes.map((attr) => (
-              <div key={attr.id} className="stack">
-                <b className="muted">{attr.label}</b>
+              <div key={attr.id} className="attr-row">
+                <b>{attr.label}</b>
                 <div className="chips">
                   {attr.options.map((option) => (
                     <button

@@ -24,6 +24,8 @@ npm run build && npm run preview   # Produktions-Build inkl. Service Worker
 
 ### Kit-Werkzeuge (Python, nur Standardbibliothek + pytest)
 
+Windows: python = py -3
+
 ```bash
 uv sync --all-extras && uv run pytest   # Tests der Skills/Werkzeuge (kein App-Backend)
 ```

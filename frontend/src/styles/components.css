@@ -635,15 +635,25 @@ details.more > summary::-webkit-details-marker {
   display: none;
 }
 .attr-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--sp-2);
-  margin-bottom: var(--sp-2);
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  align-items: start;
+  column-gap: var(--sp-2);
+  padding-block: var(--sp-3);
+}
+.attr-row + .attr-row {
+  border-top: 1px solid var(--theme-current-color-separator);
 }
 .attr-row > b {
   font-size: var(--fs-sm);
-  min-width: 92px;
+  font-weight: var(--fw-semibold);
+  color: var(--theme-current-color-text-medium);
+}
+@media (max-width: 359px) {
+  .attr-row {
+    grid-template-columns: 1fr;
+    row-gap: var(--sp-2);
+  }
 }
 .empty {
   text-align: center;

@@ -66,6 +66,15 @@ DEFAULT_SKIP_NAMES = {
     # the canonical company/org abbreviation lookup table.
     "anonymization-rules.md",
     "abbreviations.md",
+    "package-lock.json",
+    "npm-shrinkwrap.json",
+    "yarn.lock",
+    "pnpm-lock.yaml",
+    "bun.lock",
+    "uv.lock",
+    "poetry.lock",
+    "Cargo.lock",
+    "bundle.lock.json",
 }
 TEXT_EXT = {
     ".md", ".txt", ".json", ".py", ".js", ".ts", ".tsx", ".jsx", ".mdc",

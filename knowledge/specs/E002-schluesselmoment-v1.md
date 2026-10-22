@@ -83,5 +83,10 @@ Siehe `docs/app/DECISIONS.md` (D1–D16).
 ## Implementation Notes
 
 - 2026-10-22 (Orchestrator/Claude): Kern 2.0.0-alpha.2 gebaut und geprüft. 17 Unit-Tests grün; vollständiger Klickpfad (Pixel 7, strikte CSP) grün: AC1–AC8, AC10 (Logik + Anzeige), AC12, AC13 verifiziert. AC9 nur Fallback (Download) geprüft – Teilen-Menü braucht echtes Android-Gerät. AC11 offen bis SM-01 (Service Worker wurde lokal nicht gebaut). Prüfumgebung: TS 6, React 19.2, Zod 3.25 (Produktion: Zod 4 – in SM-01 prüfen), pdf-lib 1.17, esbuild statt Vite 8 (Registry gesperrt).
-- 2026-10-22 SM-11: `setDetail` setzt ein offenes Element auf OK, einen Mangel nicht. Element-Sheet statt der Detail-Liste unten. Hinweisbox „Bitte noch erledigen“ entfernt. AC2 ergänzt: ein Detail bestätigt nur dieses Element.
-- 2026-10-23 SM-16: Gesperrte Zustände nennen Element und Grund (D26). Mangel-Vorschläge je Element, Raum-Notiz nur Zustandsbegriffe (D27). Fotos im PDF beim Mangel bzw. beim Zähler, kein Sammelanhang (D28, AC13). D25 war bereits SM-10.
+- 2026-10-22 SM-01 (`8eee9f5`): Vite 8, PWA und CSP. AC11 offline und AC12 ohne Fremd-Domain. Offen blieb das Biome-Schema; D19/D20 nicht vergeben.
+- 2026-10-23 SM-10 (`fa3c0c4`, `9d1cd75`): PDF erst vorbereiten, dann senden (D25, D29). Installationshinweis wegklickbar (D30). `storePhoto` dreht EXIF und meldet unlesbare Formate.
+- 2026-10-22 SM-11 (`4841aaf`): `setDetail` setzt ein offenes Element auf OK, einen Mangel nicht. Element-Sheet statt der Detail-Liste unten. Hinweisbox „Bitte noch erledigen“ entfernt. AC2 ergänzt: ein Detail bestätigt nur dieses Element.
+- 2026-10-22 SM-12 (`436c2ef`): Demo-Protokoll mit Wasserzeichen (D23). Küche ein Mangel, übrige Räume fertig.
+- 2026-10-22 SM-13/13a (`540ddd2`, `c1a75cb`, `28d569a`): App-Icon F7, weißer Start, Wortmarke nur auf der Startseite (D24). Splash bleibt offen.
+- 2026-10-23 SM-14 (`3e47ae6`): Secret-Check. Kein Live-Schlüssel. PII-Treffer im Lockfile und in der Skill-Doku.
+- 2026-10-23 SM-16 (`da7b167`, `32af97d`, `e9fda74`): Gesperrte Zustände nennen Element und Grund (D26). Mangel-Vorschläge je Element, Raum-Notiz nur Zustandsbegriffe (D27). Fotos im PDF beim Mangel bzw. beim Zähler, kein Sammelanhang (D28, AC13). D25 war bereits SM-10.

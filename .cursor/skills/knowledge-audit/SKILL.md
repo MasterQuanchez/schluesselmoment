@@ -55,7 +55,7 @@ What it reports (ERROR fails the run, WARN is advisory):
 | in-bundle `sources:` path missing | ERROR | Dangling provenance; the cited file moved or was mistyped |
 | in-bundle markdown link target missing | ERROR | Knowledge graph edge points nowhere |
 | cross-repo `sources:`/link unresolved | WARN | Often clone naming/co-location (Q5), not a content bug |
-| PII: email, `[A-Z]\d{6,}` ID, `C:\Users\...` path | ERROR | First-names-only / vault rule violated |
+| PII: email, `[A-Z]\d{6,}` ID, `C:\Users\...` path | ERROR | First-names-only / vault rule violated | <!-- pii-scan: ignore -->
 | `last_reviewed` older than `--stale-days` (default 90) | WARN | Knowledge may have drifted from reality |
 
 Useful flags: `--root <path>`, `--stale-days <n>`, `--today YYYY-MM-DD`.
