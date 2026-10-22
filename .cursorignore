@@ -1,0 +1,38 @@
+# Cursor AI ignore file
+# Prevents the AI agent from indexing and reading sensitive files
+# This is NOT a security boundary on its own — use with hooks and file permissions
+
+# Credentials and secrets
+.env
+.env.*
+*.local
+!.env.example
+*.key
+*.pem
+*.pfx
+*.p12
+*.keystore
+id_rsa
+id_ed25519
+id_ecdsa
+
+# Azure config with connection strings
+**/local.settings.json
+**/appsettings.Development.json
+**/appsettings.Production.json
+**/appsettings.Staging.json
+
+# Credential directories
+credentials/
+secrets/
+.vault/
+
+# Production and deployment configs
+**/config/production/
+**/deploy/production/
+
+# Sensitive data files
+*.csv
+*.xlsx
+*.db
+*.sqlite

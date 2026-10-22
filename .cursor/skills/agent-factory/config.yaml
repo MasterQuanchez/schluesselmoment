@@ -1,0 +1,8 @@
+project:
+  name: "SGRE Digital Transformation"
+  repo: "ai-first-dis"
+
+devops:
+  area_path: "SGRE Digital Transformation\\MVPulse Team"
+
+specs_path: "knowledge/specs"

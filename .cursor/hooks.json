@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      { "command": "./hooks/audit.sh" }
+    ],
+    "beforeShellExecution": [
+      { "command": "./hooks/audit.sh" },
+      { "command": "./hooks/block-secret-reads.sh" },
+      { "command": "./hooks/block-network.sh" },
+      { "command": "./hooks/block-publish.sh" },
+      { "command": "./hooks/block-git.sh" },
+      { "command": "./hooks/scan-commit.sh" },
+      { "command": "./hooks/block-destructive.sh" },
+      { "command": "./hooks/block-azure-cli.sh" },
+      { "command": "./hooks/block-database.sh" }
+    ],
+    "beforeMCPExecution": [
+      { "command": "./hooks/audit.sh" }
+    ],
+    "beforeReadFile": [
+      { "command": "./hooks/audit.sh" },
+      { "command": "./hooks/redact-secrets.sh" }
+    ],
+    "afterFileEdit": [
+      { "command": "./hooks/audit.sh" },
+      { "command": "./hooks/format.sh" }
+    ],
+    "beforeSubmitPrompt": [
+      { "command": "./hooks/audit.sh" },
+      { "command": "./hooks/check-raw-transcript.sh" }
+    ],
+    "subagentStart": [
+      { "command": "./hooks/audit.sh" }
+    ],
+    "stop": [
+      { "command": "./hooks/audit.sh" }
+    ]
+  }
+}

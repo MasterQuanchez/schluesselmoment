@@ -1,0 +1,72 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# Environment variables
+.env
+.env.local
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Node / Frontend
+node_modules/
+frontend/node_modules/
+.next/
+frontend/.next/
+dist/
+frontend/dist/
+*.tsbuildinfo
+frontend/coverage/
+
+# Welcome marker (per-user, regenerated on first interaction)
+.cursor/.welcomed
+
+# Sensitive data vault (local only — GDPR/BDSG, never committed)
+.sensitive/
+
+# Local-only redaction config: real company names / org codes / participant
+# surnames live here and must NEVER be committed. Ship only the *.example.json.
+*.local.json
+
+# Pattern library (local copy — not deployed from this repo)
+dis-ai-pattern-library/
+
+# Kubernetes secrets (never commit real values)
+deployment/secrets.yml
+
+
+# Schlüsselmoment (Vite-PWA)
+frontend/dist/
+frontend/dev-dist/
+frontend/test-results/
+frontend/playwright-report/
+.vercel/
+.env.*
+!.env.example

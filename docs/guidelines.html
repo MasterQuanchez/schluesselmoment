@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI-Native Software Development - ai-first-dis</title>
+<style>
+  :root {
+    --primary: #321850;
+    --primary-80: #5A3C7D;
+    --primary-60: #825AB0;
+    --primary-30: #CBBCDC;
+    --primary-20: #E0DAE7;
+    --primary-10: #F5F2F8;
+    --accent: #00AFAD;
+    --accent-30: #B3E8E7;
+    --accent-10: #E6F7F7;
+    --accent-glow: rgba(0,175,173,0.25);
+    --bg: #FFFFFF;
+    --bg-framed: #F5F5F5;
+    --bg-brand: #321850;
+    --text: #3C3C3C;
+    --text-med: #737373;
+    --text-contrast: #FFFFFF;
+    --text-accent: #008285;
+    --text-brand-muted: #E4D6F5;
+    --success: #34CB9B;
+    --warning: #F08000;
+    --alert: #FF4D5B;
+    --border: #E0E0E0;
+    --r-lg: 12px;
+    --r: 2px;
+    --r-round: 50px;
+    --content: 1080px;
+    --font: "Weissenhof Grotesk Variable", "Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--font);
+    font-weight: 400;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: var(--content); margin: 0 auto; padding: 0 30px; }
+
+  /* TopBar */
+  .topbar {
+    position: sticky; top: 0; z-index: 10;
+    height: 60px; background: var(--bg-brand); color: var(--text-contrast);
+    display: flex; align-items: center;
+  }
+  .topbar .wrap { display: flex; align-items: center; gap: 12px; width: 100%; }
+  .mark {
+    width: 16px; height: 16px; background: var(--accent);
+    border-radius: var(--r); box-shadow: 0 0 0 4px var(--accent-glow);
+  }
+  .topbar .name { font-weight: 500; letter-spacing: -0.01em; }
+  .topbar .ctx { margin-left: auto; color: var(--text-brand-muted); font-size: 13px; }
+
+  /* Section nav */
+  .nav {
+    position: sticky; top: 60px; z-index: 9;
+    background: rgba(255,255,255,0.92); backdrop-filter: blur(6px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav .wrap { display: flex; gap: 6px; overflow-x: auto; padding: 0 30px; }
+  .nav a {
+    flex: none; padding: 14px 12px; font-size: 13px; color: var(--text-med);
+    border-bottom: 2px solid transparent; text-decoration: none; white-space: nowrap;
+  }
+  .nav a:hover { color: var(--primary); text-decoration: none; }
+  .nav a.active { color: var(--primary); border-bottom-color: var(--accent); font-weight: 500; }
+  @media (max-width: 760px) { .nav { display: none; } }
+
+  /* Eyebrow */
+  .eyebrow {
+    text-transform: uppercase; font-size: 12px; font-weight: 500;
+    letter-spacing: 0.14em; color: var(--text-accent); margin-bottom: 12px;
+  }
+
+  /* Hero */
+  .hero {
+    background: linear-gradient(180deg, var(--bg) 0%, var(--bg-framed) 100%);
+    padding: 60px 0 50px;
+  }
+  .hero h1 {
+    color: var(--primary); font-weight: 500; letter-spacing: -0.01em;
+    font-size: clamp(2.2rem, 5vw, 2.75rem); line-height: 1.1; max-width: 18ch;
+  }
+  .hero h1 .accent { color: var(--accent); }
+  .hero .lede {
+    font-size: 20px; font-weight: 400; line-height: 1.45;
+    color: var(--text-med); margin-top: 20px; max-width: 62ch;
+  }
+
+  /* Sections */
+  section { padding: 50px 0; border-top: 1px solid var(--border); scroll-margin-top: 116px; }
+  section > .wrap > .eyebrow { margin-bottom: 10px; }
+  h2 {
+    color: var(--primary); font-weight: 500; letter-spacing: -0.01em;
+    font-size: 30px; line-height: 1.15; margin-bottom: 8px;
+  }
+  .section-lede {
+    font-size: 18px; font-weight: 400; color: var(--text-med);
+    max-width: 68ch; margin-bottom: 30px;
+  }
+  h3 {
+    color: var(--primary); font-weight: 500; font-size: 16px;
+    line-height: 1.3; margin: 30px 0 12px;
+  }
+  p { margin-bottom: 12px; max-width: 72ch; }
+  p.tight { margin-bottom: 0; }
+  strong { font-weight: 500; color: var(--primary); }
+  a { color: var(--text-accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code {
+    font-family: var(--font); font-weight: 500; color: var(--text-accent);
+    background: var(--primary-10); padding: 1px 6px; border-radius: var(--r);
+    font-size: 0.92em;
+  }
+
+  /* Grids */
+  .grid { display: grid; gap: 20px; }
+  .g2 { grid-template-columns: repeat(2, 1fr); }
+  .g3 { grid-template-columns: repeat(3, 1fr); }
+  @media (max-width: 760px) { .g2, .g3 { grid-template-columns: 1fr; } }
+
+  /* Card */
+  .card {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--r-lg); padding: 22px;
+    transition: box-shadow .18s ease, border-color .18s ease, transform .18s ease;
+  }
+  .card:hover {
+    box-shadow: 0 10px 40px rgba(50,24,80,0.10);
+    border-color: var(--primary-20); transform: translateY(-2px);
+  }
+  .card h3 { margin-top: 0; }
+  .card p { color: var(--text-med); }
+  .card .icon {
+    width: 34px; height: 34px; border-radius: var(--r-round);
+    background: var(--accent-10); color: var(--text-accent);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 500; margin-bottom: 14px;
+  }
+  .card-dark { background: var(--primary); border-color: var(--primary); }
+  .card-dark h3 { color: var(--text-contrast); }
+  .card-dark p { color: var(--primary-20); }
+  .card-dark strong { color: var(--text-contrast); }
+  .card-dark:hover { box-shadow: 0 10px 40px rgba(50,24,80,0.28); }
+
+  /* Compare columns */
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 760px) { .compare { grid-template-columns: 1fr; } }
+  .col { border-radius: var(--r-lg); padding: 24px; }
+  .col.bad { background: var(--bg-framed); }
+  .col.good { background: var(--primary-10); border: 1px solid var(--primary-20); }
+  .col h3 { margin-top: 0; }
+  .col ul { list-style: none; }
+  .col li { position: relative; padding-left: 24px; margin-bottom: 10px; color: var(--text); }
+  .col.bad li::before {
+    content: "-"; position: absolute; left: 4px; color: var(--alert); font-weight: 500;
+  }
+  .col.good li::before {
+    content: "\2713"; position: absolute; left: 2px; color: var(--success); font-weight: 500;
+  }
+
+  /* Steps / loop */
+  .steps { display: grid; gap: 15px; }
+  .step {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--r-lg); padding: 18px; display: flex; gap: 16px; align-items: flex-start;
+  }
+  .step .num {
+    flex: none; width: 28px; height: 28px; border-radius: var(--r-round);
+    background: var(--accent); color: #fff; font-weight: 500; font-size: 13px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .step .body h3 { margin: 0 0 4px; }
+  .step .body p { margin: 0; color: var(--text-med); }
+
+  /* Badges */
+  .badges { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+  .badge {
+    background: var(--primary-10); color: var(--primary); border: 1px solid var(--primary-20);
+    border-radius: var(--r-round); padding: 7px 16px; font-size: 13px; font-weight: 500;
+  }
+
+  /* Callout */
+  .callout {
+    background: var(--accent-10); border-radius: var(--r-lg);
+    padding: 20px 24px; margin: 20px 0; color: var(--text);
+  }
+  .callout strong { color: var(--text-accent); }
+
+  /* Pull-quote */
+  .pull {
+    color: var(--primary); font-weight: 500; font-size: 24px; line-height: 1.3;
+    border-left: 3px solid var(--accent); padding-left: 20px; margin: 10px 0 0;
+    max-width: 64ch;
+  }
+
+  /* Code block */
+  pre {
+    background: var(--bg-framed); border: 1px solid var(--border);
+    border-radius: var(--r-lg); padding: 18px 20px; margin: 16px 0;
+    white-space: pre-wrap; font-family: var(--font); font-size: 13px;
+    color: var(--text); line-height: 1.6; overflow-x: auto;
+  }
+  pre .cmt { color: var(--text-med); }
+
+  /* Diagram */
+  .diagram { margin: 22px 0 6px; }
+  .diagram svg { width: 100%; height: auto; display: block; }
+  .diagram text { font-family: var(--font); }
+
+  /* Table */
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 4px; }
+  th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--primary); font-weight: 500; font-size: 13px; }
+  td { color: var(--text-med); font-size: 14px; }
+  td strong { color: var(--primary); }
+
+  /* Footer */
+  footer { background: var(--bg-brand); color: var(--text-contrast); padding: 40px 0; }
+  footer .closing { font-weight: 500; font-size: 18px; margin-bottom: 8px; }
+  footer .attr { color: var(--primary-20); font-size: 13px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="wrap">
+    <span class="mark"></span>
+    <span class="name">AI-Native Software Development</span>
+    <span class="ctx">ai-first-dis</span>
+  </div>
+</div>
+
+<nav class="nav" aria-label="Section navigation">
+  <div class="wrap">
+    <a href="#what">Overview</a>
+    <a href="#blocks">Building blocks</a>
+    <a href="#principles">Principles</a>
+    <a href="#workflow">Workflow</a>
+    <a href="#prompting">Prompting</a>
+    <a href="#orchestrate">Orchestration</a>
+    <a href="#roles">Roles</a>
+    <a href="#safety">Safety</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Digital Products / Wind Power</p>
+    <h1>Building software when agents do the <span class="accent">typing</span>.</h1>
+    <p class="lede">The single guide to what this repo is about: a structured SDLC where
+    capable coding agents handle most of the implementation, and humans stay accountable for
+    intent and outcome.</p>
+  </div>
+</header>
+
+<section id="what">
+  <div class="wrap">
+    <p class="eyebrow">What this repo is</p>
+    <h2>An AI-first development template</h2>
+    <p class="section-lede">A layered template: human intent on top, an orchestration layer that
+    runs the loop, and the agent-factory SDLC underneath - with design, traceability, and
+    security running across every stage.</p>
+
+    <div class="diagram" role="img" aria-label="The template as layers: human intent on top, the orchestrate loop layer, the agent-factory SDLC producing reviewable tested software, with the WP design toolkit, traceability, data-safety, and secure coding as cross-cutting concerns.">
+    <svg viewBox="0 0 1040 430" xmlns="http://www.w3.org/2000/svg">
+      <defs><marker id="arwT" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#00AFAD"/></marker></defs>
+      <rect x="20" y="20" width="1000" height="52" rx="12" fill="#321850"/>
+      <text x="520" y="51" text-anchor="middle" fill="#FFFFFF" font-size="15" font-weight="500">Human - intent, constraints &amp; accountability</text>
+      <line x1="520" y1="74" x2="520" y2="86" stroke="#00AFAD" stroke-width="2" marker-end="url(#arwT)"/>
+      <rect x="20" y="90" width="1000" height="52" rx="12" fill="#E6F7F7" stroke="#B3E8E7"/>
+      <text x="520" y="121" text-anchor="middle" fill="#008285" font-size="15" font-weight="500">orchestrate - run the loop, route the model</text>
+      <line x1="520" y1="144" x2="520" y2="156" stroke="#00AFAD" stroke-width="2" marker-end="url(#arwT)"/>
+      <rect x="20" y="160" width="1000" height="84" rx="12" fill="#F5F2F8" stroke="#E0DAE7"/>
+      <text x="40" y="185" fill="#321850" font-size="14" font-weight="500">agent-factory - the SDLC</text>
+      <g font-size="13" font-weight="500" fill="#321850" text-anchor="middle">
+        <rect x="40" y="198" width="148" height="32" rx="8" fill="#FFFFFF" stroke="#E0DAE7"/><text x="114" y="219">discover</text>
+        <rect x="200" y="198" width="148" height="32" rx="8" fill="#FFFFFF" stroke="#E0DAE7"/><text x="274" y="219">plan</text>
+        <rect x="360" y="198" width="148" height="32" rx="8" fill="#FFFFFF" stroke="#E0DAE7"/><text x="434" y="219">implement</text>
+        <rect x="520" y="198" width="148" height="32" rx="8" fill="#FFFFFF" stroke="#E0DAE7"/><text x="594" y="219">test</text>
+        <rect x="680" y="198" width="148" height="32" rx="8" fill="#FFFFFF" stroke="#E0DAE7"/><text x="754" y="219">review</text>
+        <rect x="840" y="198" width="148" height="32" rx="8" fill="#FFFFFF" stroke="#E0DAE7"/><text x="914" y="219">submit</text>
+      </g>
+      <line x1="520" y1="246" x2="520" y2="258" stroke="#00AFAD" stroke-width="2" marker-end="url(#arwT)"/>
+      <rect x="20" y="262" width="1000" height="46" rx="12" fill="#F5F5F5"/>
+      <text x="520" y="290" text-anchor="middle" fill="#3C3C3C" font-size="14">Reviewable, tested software</text>
+      <text x="20" y="340" fill="#008285" font-size="11" font-weight="500" letter-spacing="1.4">CROSS-CUTTING - AVAILABLE AT EVERY STAGE</text>
+      <g>
+        <rect x="20" y="350" width="238" height="62" rx="12" fill="#FFFFFF" stroke="#E0E0E0"/>
+        <text x="38" y="378" fill="#321850" font-size="13" font-weight="500">wp-agentic-ux-toolkit</text>
+        <text x="38" y="397" fill="#737373" font-size="12">Design system &amp; UX</text>
+        <rect x="274" y="350" width="238" height="62" rx="12" fill="#FFFFFF" stroke="#E0E0E0"/>
+        <text x="292" y="378" fill="#321850" font-size="13" font-weight="500">specs + Azure DevOps</text>
+        <text x="292" y="397" fill="#737373" font-size="12">Traceability</text>
+        <rect x="528" y="350" width="238" height="62" rx="12" fill="#FFFFFF" stroke="#E0E0E0"/>
+        <text x="546" y="378" fill="#321850" font-size="13" font-weight="500">data-safety</text>
+        <text x="546" y="397" fill="#737373" font-size="12">Compliance &amp; vault</text>
+        <rect x="782" y="350" width="238" height="62" rx="12" fill="#FFFFFF" stroke="#E0E0E0"/>
+        <text x="800" y="378" fill="#321850" font-size="13" font-weight="500">Secure SDL</text>
+        <text x="800" y="397" fill="#737373" font-size="12">vendored leaves</text>
+      </g>
+    </svg>
+    </div>
+
+    <p class="pull">Output quality is bottlenecked by your unknowns and your routing choices,
+    not by the model - so the repo closes those gaps and keeps a human accountable, rather
+    than trying to out-clever the model.</p>
+  </div>
+</section>
+
+<section id="blocks">
+  <div class="wrap">
+    <p class="eyebrow">Building blocks</p>
+    <h2>The components, one by one</h2>
+    <p class="section-lede">Each layer and cross-cutting concern is an independent building
+    block you can adopt on its own.</p>
+    <div class="grid g3">
+      <div class="card">
+        <div class="icon">SDLC</div>
+        <h3>agent-factory</h3>
+        <p>One Cursor skill per phase - discover, plan, implement, review, test, debug,
+        submit, reflect, sync-to-devops, simplify.</p>
+      </div>
+      <div class="card">
+        <div class="icon">O</div>
+        <h3>orchestrate</h3>
+        <p>The loop over subagents - the gate, carry-forward, and role→model routing (named
+        explicitly on every spawn), so the workflow doesn't depend on every user being a prompt
+        engineer.</p>
+      </div>
+      <div class="card">
+        <div class="icon">UX</div>
+        <h3>wp-agentic-ux-toolkit</h3>
+        <p>The WP CI / Dojo design system for all UI, UX, and frontend work - reached through
+        the <code>design</code> skill so agents compose from tokens and patterns, never
+        hardcoded styles.</p>
+      </div>
+      <div class="card">
+        <div class="icon">&#8250;_</div>
+        <h3>specs + Azure DevOps</h3>
+        <p>Specs as a markdown-linked knowledge graph in <code>knowledge/specs/</code>, with
+        optional two-point sync for full traceability. Implementation Notes on each spec is
+        the drift ledger.</p>
+      </div>
+      <div class="card">
+        <div class="icon">DS</div>
+        <h3>data-safety &amp; compliance</h3>
+        <p>Hooks that block catastrophic operations and protect secrets, plus a
+        <code>.sensitive/</code> vault and the <code>data-safety</code> skill for GDPR / BDSG
+        compliance.</p>
+      </div>
+      <div class="card">
+        <div class="icon">SEC</div>
+        <h3>Secure SDL harness</h3>
+        <p>Vendored copy of corporate <code>sdlskills</code> leaves under
+        <code>.cursor/skills/secure-coding/</code>, consumed selectively by agent-factory
+        (plan &#8594; implement &#8594; test &#8594; review Lane B). Control IDs without Oscar's
+        always-on Cursor compiler.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="shift">
+  <div class="wrap">
+    <p class="eyebrow">Orientation, not prophecy</p>
+    <h2>The ends of the lifecycle matter more</h2>
+    <p class="section-lede">One durable observation is enough: as agents absorb
+    implementation, effort moves to forming intent and validating outcomes.</p>
+    <div class="compare">
+      <div class="col bad">
+        <h3>Matters less</h3>
+        <ul>
+          <li>Typing speed</li>
+          <li>Syntax recall and deep IDE mastery</li>
+          <li>Manual boilerplate</li>
+          <li>Line-by-line manual debugging</li>
+        </ul>
+      </div>
+      <div class="col good">
+        <h3>Matters more</h3>
+        <ul>
+          <li>Intent: framing, constraints, acceptance criteria</li>
+          <li>Validation: review and testing that scale</li>
+          <li>Orchestrating agents toward a clear goal</li>
+          <li>Architectural judgment and trade-offs</li>
+        </ul>
+      </div>
+    </div>
+    <div class="callout">
+      <p class="tight">Treat this as a direction to lean into, not a fixed roadmap. The
+      <strong>governance</strong> here (human checkpoints, specs, audit trails) holds
+      regardless of the capability curve; the <strong>prompting technique</strong> adapts.</p>
+    </div>
+  </div>
+</section>
+
+<section id="principles">
+  <div class="wrap">
+    <p class="eyebrow">Core principles</p>
+    <h2>How we work with agents today</h2>
+    <div class="steps">
+      <div class="step"><span class="num">1</span><div class="body"><h3>AI augments, it does not replace</h3><p>An over-confident, very fast pair programmer. Human leads, AI executes, verify everything - its failures are inhuman.</p></div></div>
+      <div class="step"><span class="num">2</span><div class="body"><h3>Context is king</h3><p>Manage what the agent knows: <code>AGENTS.md</code>, rules, the right files. When a chat stops helping, reset context.</p></div></div>
+      <div class="step"><span class="num">3</span><div class="body"><h3>Capability amplifies expertise</h3><p>Prompts inherit your judgment. Domain knowledge, not tricks, makes output good.</p></div></div>
+      <div class="step"><span class="num">4</span><div class="body"><h3>Hand a goal, not steps</h3><p>Every dictated step overrides the agent's judgment with yours. Give the reason and the bar; let it find the path.</p></div></div>
+      <div class="step"><span class="num">5</span><div class="body"><h3>The builder never grades its own work</h3><p>Whatever builds a thing is biased toward its own trajectory. Verify in a fresh context against the real output.</p></div></div>
+      <div class="step"><span class="num">6</span><div class="body"><h3>Humans stay accountable at the boundaries</h3><p>Irreversible or external actions are gated or pre-authorized once, never silently automated.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<section id="workflow">
+  <div class="wrap">
+    <p class="eyebrow">The workflow</p>
+    <h2>Two entry points, one language</h2>
+    <p class="section-lede">Mix them: prototype Solo, formalize with the factory.</p>
+    <p><strong>Solo</strong> is Cursor's native loop for fast, low-ceremony iteration - good for
+    prototypes and experiments. <strong>Team (agent-factory)</strong> is the structured SDLC:
+    work-item tracking, human checkpoints, and traceability, entered at any point. The
+    <strong>spec</strong> (<code>knowledge/specs/</code>) is the durable contract across sessions;
+    stages append to <strong>Implementation Notes</strong>.</p>
+    <div class="diagram" role="img" aria-label="Solo workflow as a linear chain of Cursor-native steps; the team agent-factory SDLC with a debug loop, two Azure DevOps sync points, and a reflect stage after submit.">
+    <svg viewBox="0 0 1040 330" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arwA" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#00AFAD"/></marker>
+        <marker id="arwG" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#737373"/></marker>
+      </defs>
+
+      <text x="20" y="22" fill="#008285" font-size="11" font-weight="500" letter-spacing="1.4">SOLO - CURSOR NATIVE</text>
+      <g font-size="13" font-weight="500" fill="#321850" text-anchor="middle">
+        <rect x="20" y="36" width="128" height="40" rx="10" fill="#F5F2F8"/><text x="84" y="61">Research</text>
+        <rect x="165" y="36" width="128" height="40" rx="10" fill="#F5F2F8"/><text x="229" y="61">Plan</text>
+        <rect x="310" y="36" width="128" height="40" rx="10" fill="#F5F2F8"/><text x="374" y="61">Build</text>
+        <rect x="455" y="36" width="128" height="40" rx="10" fill="#F5F2F8"/><text x="519" y="61">Test</text>
+        <rect x="600" y="36" width="128" height="40" rx="10" fill="#F5F2F8"/><text x="664" y="61">Review</text>
+        <rect x="745" y="36" width="128" height="40" rx="10" fill="#F5F2F8"/><text x="809" y="61">Debug</text>
+        <rect x="890" y="36" width="128" height="40" rx="10" fill="#F5F2F8"/><text x="954" y="61">Ship</text>
+      </g>
+      <g stroke="#00AFAD" stroke-width="2" marker-end="url(#arwA)">
+        <line x1="150" y1="56" x2="161" y2="56"/><line x1="295" y1="56" x2="306" y2="56"/>
+        <line x1="440" y1="56" x2="451" y2="56"/><line x1="585" y1="56" x2="596" y2="56"/>
+        <line x1="730" y1="56" x2="741" y2="56"/><line x1="875" y1="56" x2="886" y2="56"/>
+      </g>
+
+      <line x1="20" y1="104" x2="1020" y2="104" stroke="#E0E0E0" stroke-width="1"/>
+
+      <text x="20" y="134" fill="#008285" font-size="11" font-weight="500" letter-spacing="1.4">TEAM - AGENT-FACTORY</text>
+      <g font-size="13" font-weight="500" fill="#321850" text-anchor="middle">
+        <rect x="20" y="148" width="150" height="52" rx="12" fill="#F5F2F8" stroke="#E0DAE7"/><text x="95" y="178">discover</text>
+        <rect x="190" y="148" width="150" height="52" rx="12" fill="#F5F2F8" stroke="#E0DAE7"/><text x="265" y="178">plan</text>
+        <rect x="360" y="148" width="150" height="52" rx="12" fill="#F5F2F8" stroke="#E0DAE7"/><text x="435" y="178">implement</text>
+        <rect x="530" y="148" width="150" height="52" rx="12" fill="#F5F2F8" stroke="#E0DAE7"/><text x="605" y="178">test</text>
+        <rect x="700" y="148" width="150" height="52" rx="12" fill="#F5F2F8" stroke="#E0DAE7"/><text x="775" y="178">review</text>
+        <rect x="870" y="148" width="150" height="52" rx="12" fill="#F5F2F8" stroke="#E0DAE7"/><text x="945" y="178">submit</text>
+      </g>
+      <g stroke="#00AFAD" stroke-width="2" marker-end="url(#arwA)">
+        <line x1="172" y1="174" x2="186" y2="174"/><line x1="342" y1="174" x2="356" y2="174"/>
+        <line x1="512" y1="174" x2="526" y2="174"/><line x1="682" y1="174" x2="696" y2="174"/>
+        <line x1="852" y1="174" x2="866" y2="174"/>
+      </g>
+      <text x="860" y="166" text-anchor="middle" fill="#737373" font-size="11">pass</text>
+
+      <rect x="530" y="248" width="150" height="40" rx="12" fill="#FFFFFF" stroke="#E0E0E0"/>
+      <text x="605" y="273" text-anchor="middle" fill="#321850" font-size="13" font-weight="500">debug</text>
+      <line x1="592" y1="202" x2="592" y2="246" stroke="#737373" stroke-width="2" marker-end="url(#arwG)"/>
+      <text x="586" y="228" text-anchor="end" fill="#737373" font-size="11">fail</text>
+      <line x1="622" y1="246" x2="622" y2="202" stroke="#737373" stroke-width="2" marker-end="url(#arwG)"/>
+
+      <line x1="265" y1="202" x2="265" y2="246" stroke="#CBBCDC" stroke-width="1.5" stroke-dasharray="3 3"/>
+      <rect x="200" y="248" width="130" height="30" rx="15" fill="#FFFFFF" stroke="#E0DAE7"/>
+      <text x="265" y="267" text-anchor="middle" fill="#825AB0" font-size="12" font-weight="500">ADO: planned</text>
+      <line x1="945" y1="202" x2="945" y2="246" stroke="#CBBCDC" stroke-width="1.5" stroke-dasharray="3 3"/>
+      <rect x="880" y="248" width="130" height="30" rx="15" fill="#FFFFFF" stroke="#E0DAE7"/>
+      <text x="945" y="267" text-anchor="middle" fill="#825AB0" font-size="12" font-weight="500">ADO: done</text>
+      <rect x="700" y="288" width="150" height="30" rx="12" fill="#F5F2F8" stroke="#E0DAE7"/>
+      <text x="775" y="308" text-anchor="middle" fill="#321850" font-size="12" font-weight="500">reflect</text>
+      <line x1="945" y1="278" x2="775" y2="288" stroke="#CBBCDC" stroke-width="1.5" stroke-dasharray="3 3"/>
+    </svg>
+    </div>
+    <p>Inner loop order is deliberate: <strong>test precedes review</strong> so the
+    fresh-context reviewer consumes tester artifacts. When the plan or diff hits security
+    surfaces, review runs Lane A (generic) then selective Lane B (Secure SDL).</p>
+    <table>
+      <thead><tr><th>Skill</th><th>Purpose</th><th>Invocation</th></tr></thead>
+      <tbody>
+        <tr><td><strong>discover</strong></td><td>Interview-driven requirements</td><td>"discover requirements for X"</td></tr>
+        <tr><td><strong>plan</strong></td><td>Implementation plan; list security surfaces when relevant</td><td>"plan this feature"</td></tr>
+        <tr><td><strong>implement</strong></td><td>TDD build; selective Secure SDL leaves</td><td>"implement F001"</td></tr>
+        <tr><td><strong>test</strong></td><td>Acceptance criteria; selective abuse cases</td><td>"test work item #456"</td></tr>
+        <tr><td><strong>review</strong></td><td>Lane A generic; selective Lane B Secure SDL</td><td>"review PR #123" / "secure review"</td></tr>
+        <tr><td><strong>debug</strong></td><td>Hypothesis-driven fix</td><td>"debug TypeError in auth"</td></tr>
+        <tr><td><strong>submit</strong></td><td>Align specs, open PR</td><td>"submit"</td></tr>
+        <tr><td><strong>reflect</strong></td><td>Post-run learnings; propose harness improvements</td><td>"reflect" / "capture learnings"</td></tr>
+        <tr><td><strong>sync-to-devops</strong></td><td>Specs to Azure DevOps</td><td>"sync E001 to devops"</td></tr>
+        <tr><td><strong>design</strong></td><td>UI/UX via the WP toolkit</td><td>"design a page"</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="prompting">
+  <div class="wrap">
+    <p class="eyebrow">The orchestration layer</p>
+    <h2>Your role in prompting</h2>
+    <p class="section-lede">You do not have to be a prompt engineer. The
+    <code>orchestrate</code> skill runs the loop and shaping sequence; your job is narrower -
+    supply what only you know, and approve before it runs.</p>
+    <div class="grid g2">
+      <div class="card">
+        <h3>The skill does the shaping</h3>
+        <p>Using <code>orchestrate</code>, the agent locates the stage and its role,
+        drafts the four components (context, request, output format, constraints), routes the
+        model (naming it explicitly on spawn), and sets up the fresh-context verifier - the
+        mechanical parts of a good prompt.</p>
+      </div>
+      <div class="card card-dark">
+        <h3>You supply what only you know</h3>
+        <p>Give your <strong>starting point</strong> and known unknowns. Answer the
+        <strong>grill</strong> (architecture-first, one question at a time). Confirm the
+        <strong>hard bar</strong> for done. <strong>Approve</strong> the prompt and model
+        before the run starts.</p>
+      </div>
+    </div>
+    <div class="callout">
+      <p class="tight"><strong>Durable core:</strong> the human always owns three things -
+      close <em>your</em> unknowns, set a <em>hard</em> bar, name a <em>fresh</em> verifier.
+      These survive any model generation because they encode your knowledge gaps and the org's
+      trust boundary, not model-capability crutches. Expect the mechanical shaping to shrink as
+      models improve; your three stay.</p>
+    </div>
+  </div>
+</section>
+
+<section id="fires">
+  <div class="wrap">
+    <p class="eyebrow">How it fires in practice</p>
+    <h2>Three ways it engages</h2>
+    <p class="section-lede">There is no silent prompt-rewriter. Cursor loads a skill when your
+    message matches its description, then the agent follows it. What changes across the three
+    modes is how much of the shaping the agent does for you, least to most automated.</p>
+    <div class="grid g3">
+      <div class="card">
+        <h3>Mode 1 - direct stage command</h3>
+        <p>A plain command runs the stage; its inline pointer makes the agent apply the
+        principles while executing. Your sentence isn't transformed.</p>
+        <pre>implement T2 from the plan</pre>
+      </div>
+      <div class="card">
+        <h3>Mode 2 - meta prompting</h3>
+        <p>The agent helps you write the prompt: it runs the shaping pass, may grill you one
+        question at a time, and hands back a launch prompt to approve.</p>
+        <pre>help me prompt this: &lt;idea&gt;,
+then show me the launch
+prompt before running</pre>
+      </div>
+      <div class="card">
+        <h3>Mode 3 - orchestration</h3>
+        <p>The orchestrator writes each subagent's spawn prompt and routes its role to a
+        model. The transformation is real, done by the agent.</p>
+        <pre>orchestrate F001 end-to-end
+as subagents</pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="orchestrate">
+  <div class="wrap">
+    <p class="eyebrow">Orchestrating a run</p>
+    <h2>From a shaped prompt to an autonomous run</h2>
+    <p class="section-lede">Mode 2 is the natural way to draft a Mode 3 run: use meta prompting
+    to write the orchestrator launch prompt, review it, then hand it to an orchestrator
+    (ideally a cloud agent) to execute.</p>
+
+    <h3>Separation of concerns</h3>
+    <p>The value of this split is that <em>alignment</em>, <em>implementation</em>, and
+    <em>verification</em> are done by different actors, at different times:</p>
+    <div class="steps">
+      <div class="step"><span class="num">1</span><div class="body"><h3>Align - you (Mode 2)</h3><p>The <code>discover</code> grill happens here: you define the intent and what "done" means. The output is the spec - the contract the run is held to.</p></div></div>
+      <div class="step"><span class="num">2</span><div class="body"><h3>Implement - the agent (Mode 3)</h3><p>A <code>plan &#8594; implement &#8594; test &#8594; review</code> inner loop runs autonomously against that spec. In HOTL the orchestrator approves the plan on the human's behalf.</p></div></div>
+      <div class="step"><span class="num">3</span><div class="body"><h3>Verify - a fresh-context subagent</h3><p>Review runs in isolated context against the <em>original</em> spec. A separate subagent in the same session is enough - the builder never grades its own work.</p></div></div>
+    </div>
+    <p>So the human owns the two ends - intent at the start, acceptance at the finish - while
+    the middle runs on its own. In <strong>HITL</strong> that human touch also lands between
+    every stage; in <strong>HOTL</strong> it is front-loaded in the Mode 2 grill and repeated
+    only at the end.</p>
+
+    <p>You ask for the prompt in plain language:</p>
+    <pre>help me shape an orchestrator launch prompt to run F001-dashboard-api
+end-to-end, human-on-the-loop, then show it to me before I run it</pre>
+
+    <p class="pull">Mode 2 shapes it &#8594; you review and approve the prompt &#8594; Mode 3
+    executes it.</p>
+
+    <p style="margin-top:20px">On your behalf, <code>orchestrate</code> runs the
+    <code>discover</code> alignment - grilling you on the architecture-shaping unknowns once up
+    front and pinning down what "done" means - then writes the four components, sets the gates,
+    and routes each subagent's role to a model. Because alignment is already captured in the
+    spec, the run itself only needs the <code>plan &#8594; implement &#8594; test &#8594; review</code> inner
+    loop. The result is a launch prompt like this, which you approve before it runs:</p>
+    <pre>orchestrate F001-dashboard-api end-to-end, human-on-the-loop.
+
+Context: real-time analytics dashboard. Intent and acceptance criteria are already
+  aligned in the spec at knowledge/specs/F001-dashboard-api.md (from the Mode 2 grill).
+Goal (not steps): ship the feature to a reviewable PR - you decide the approach.
+Inner loop: plan -&gt; implement -&gt; test -&gt; review, each a subagent with role+model per models.toml.
+House rules: follow existing codebase patterns; no new deps beyond the plan.
+Bar for done: all acceptance criteria pass under a FRESH-context verifier subagent,
+  verified by running the app end-to-end in your environment - not just a passing compile.
+Pre-authorized actions: create the branch and commits; STOP before opening the PR or
+  touching ADO - I approve those.
+Log decisions and deviations to the spec's Implementation Notes as you go.
+Report back with evidence (e2e results + the verifier's verdict).</pre>
+
+    <h3>Who verifies, and when</h3>
+    <p>That approval step is a lightweight gate. The difference between the two modes is
+    <em>where</em> the human sits: gating every stage, or verifying once at the end.</p>
+    <div class="compare">
+      <div class="col bad">
+        <h3>HITL - in the loop (default)</h3>
+        <ul>
+          <li>Human gates every stage</li>
+          <li>Plan approval, review verdict, test sign-off</li>
+          <li>Safe, cheap, no drift</li>
+          <li>The right default</li>
+        </ul>
+      </div>
+      <div class="col good">
+        <h3>HOTL - on the loop</h3>
+        <ul>
+          <li>One orchestrator session drives the stages</li>
+          <li>Human verifies once, at the end</li>
+          <li>Shines with cloud agents that test e2e in a VM</li>
+          <li>You get an already-exercised branch</li>
+        </ul>
+      </div>
+    </div>
+    <h3>Guardrails that stay even in HOTL</h3>
+    <div class="grid g3">
+      <div class="card"><h3>Fresh verifier</h3><p>Review runs in a fresh-context subagent (different from the builder) pointed at the real output. Same session is fine.</p></div>
+      <div class="card"><h3>Bounded actions</h3><p>Git push, PR, and ADO items are gated or pre-authorized once, up front - never left fully open.</p></div>
+      <div class="card"><h3>Durable spec</h3><p>The orchestrator supervises drift via <strong>Implementation Notes</strong> on the spec; every deviation is auditable and syncs to ADO.</p></div>
+    </div>
+    <div class="callout" style="margin-top:20px">
+      <p class="tight"><strong>After the run:</strong> the <code>reflect</code> stage appends learnings to the spec and
+      proposes harness improvements as a plan. The human decides what to act on - agents do not scatter state files.</p>
+    </div>
+  </div>
+</section>
+
+<section id="roles">
+  <div class="wrap">
+    <p class="eyebrow">Guidelines by role</p>
+    <h2>What good looks like</h2>
+    <div class="grid g2">
+      <div class="card">
+        <h3>Managers</h3>
+        <p>Set expectations (review stays essential); enable the team via current
+        <code>AGENTS.md</code> (dev rules and model-selection rubric); require tests and review for all AI code.</p>
+      </div>
+      <div class="card">
+        <h3>Designers &amp; PMs</h3>
+        <p>Prototype to think: have the agent generate several divergent directions as
+        artifacts you react to, using the <code>design</code> skill and the WP toolkit. Front
+        the intent - frame the problem, constraints, and acceptance criteria - so agents build
+        the right thing.</p>
+      </div>
+      <div class="card">
+        <h3>Developers</h3>
+        <p>Plan before building; prompt authoritatively with patterns and signatures;
+        verify relentlessly (prefer integration tests); treat Git as the source of truth.</p>
+      </div>
+      <div class="card">
+        <h3>QA</h3>
+        <p>Probe edge cases and regressions in untouched files; verify automated &#8594;
+        acceptance &#8594; UI &#8594; security; watch for surprise dependencies and scope creep.</p>
+      </div>
+    </div>
+    <h3>Testing AI-native (non-deterministic) features</h3>
+    <p>LLM-backed features vary run to run, so exact-match assertions break. Use
+    <strong>semantic checks</strong> (meaning and bounds), <strong>LLM-as-judge</strong>
+    (score against input, gate on a threshold), <strong>human evaluation</strong> on a
+    sample, and <strong>golden datasets</strong> to catch quality drift across model versions.</p>
+  </div>
+</section>
+
+<section id="safety">
+  <div class="wrap">
+    <p class="eyebrow">Safety and compliance</p>
+    <h2>Guardrails around the agent</h2>
+    <p class="section-lede">Three complementary layers - runtime hooks, data safety, and the
+    Secure SDL harness. Do not collapse them.</p>
+    <div class="grid g3">
+      <div class="card"><h3>Hooks</h3><p>Block catastrophic operations, require confirmation for risky ones, prevent credential exposure, and audit actions. See <code>docs/security.md</code>.</p></div>
+      <div class="card"><h3>Data safety</h3><p><code>.sensitive/</code> is a gitignored vault; first names only in tracked files; secrets in <code>.env</code>. Say "check data safety".</p></div>
+      <div class="card"><h3>Your responsibility</h3><p>Review all AI code before merge, test security paths, never paste secrets into prompts, verify external calls.</p></div>
+    </div>
+
+    <h3>Secure SDL harness (vendored copy)</h3>
+    <p>Corporate Secure SDL leaves originate in Oscar's <strong>sdlskills</strong> repo. Their
+    Cursor compiler installs them as always-on <code>.mdc</code> rules - the wrong fit here,
+    where agent-factory already carries a large skill set.</p>
+    <div class="grid g2">
+      <div class="card">
+        <h3>Vendored as-is, not always-on</h3>
+        <p>Keep leaf <code>SKILL.md</code> files under
+        <code>.cursor/skills/secure-coding/&lt;leaf&gt;/</code> and consume them
+        <strong>as-is</strong>. Do not edit leaves to adapt them - interpretation lives only
+        in agent-factory's Secure SDL leaf map. Refresh from upstream when Oscar ships changes;
+        update the map if names or surfaces moved.</p>
+      </div>
+      <div class="card">
+        <h3>Selective, not the full pillar</h3>
+        <p><code>plan</code> / <code>implement</code> / <code>test</code> open only the leaves
+        the surface cues imply (typically 1–few). Review is one stage, two lanes: Lane A
+        generic (no leaf load); Lane B Secure SDL with control IDs and domain PASS/FAIL for
+        loaded leaves. Auto-dispatch selective Lane B when the plan or diff hits security
+        surfaces. Full-pillar breadth only on explicit ask.</p>
+      </div>
+    </div>
+    <p>Triggers: <code>secure review</code>, <code>security review</code>, or a normal
+    <code>review</code> on a security-relevant change. Security is baked into HITL/HOTL
+    stages - not a separate periodic product outside agent-factory.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p class="closing">Shape the intent. Validate the outcome. Keep the human accountable.</p>
+    <p class="attr">Digital Products, Wind Power - ai-first-dis. See docs/guidelines.md for the full text.</p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var links = Array.prototype.slice.call(document.querySelectorAll('.nav a'));
+  var map = links.map(function (a) {
+    return { a: a, el: document.querySelector(a.getAttribute('href')) };
+  }).filter(function (x) { return x.el; });
+  function onScroll() {
+    var pos = window.scrollY + 130;
+    var cur = map.length ? map[0] : null;
+    for (var i = 0; i < map.length; i++) {
+      if (map[i].el.offsetTop <= pos) cur = map[i];
+    }
+    links.forEach(function (a) { a.classList.remove('active'); });
+    if (cur) cur.a.classList.add('active');
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', onScroll);
+  onScroll();
+})();
+</script>
+
+</body>
+</html>

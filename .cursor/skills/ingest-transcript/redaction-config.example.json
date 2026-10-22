@@ -1,0 +1,34 @@
+{
+  "_README": [
+    "Copy this file to '.sensitive/redaction-config.local.json' (recommended on",
+    "OneDrive-shared projects) or 'redaction-config.local.json' at repo root.",
+    "Both are gitignored. Fill in your project's REAL sensitive terms.",
+    "Auto-discovered by prepare_transcript.py and pii_scan.py (searched upward",
+    "from CWD / input, and in .sensitive/). NEVER commit the .local.json.",
+    "All matching is applied to transcript text during local redaction."
+  ],
+  "term_replacement": "[redacted]",
+  "org_replacement": "[org-unit redacted]",
+
+  "full_names": [
+    "Firstname Lastname",
+    "Another Person"
+  ],
+
+  "literal_terms": [
+    "Full Company Name Inc.",
+    "Company Legacy Name GmbH",
+    "InternalProductCodename"
+  ],
+
+  "org_code_patterns": [
+    "\\b[A-Z]{2} WP(?: [A-Z0-9]+){0,6}\\b"
+  ],
+
+  "extra_patterns": [
+    {
+      "regex": "\\bPIN\\s*[:#]?\\s*\\d{4,6}\\b",
+      "replacement": "[pin redacted]"
+    }
+  ]
+}

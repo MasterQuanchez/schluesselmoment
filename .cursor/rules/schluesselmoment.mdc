@@ -1,0 +1,15 @@
+---
+description: Leitplanken für Schlüsselmoment (immer aktiv)
+alwaysApply: true
+---
+- Spec zuerst: knowledge/specs/E002-schluesselmoment-v1.md (ACs) und docs/app/DECISIONS.md lesen.
+- Prompts `SM-xx … NUR PLANEN`: nur planen, keinen Code ändern, bis Philipp „ja“ sagt.
+- Kein Backend, kein Login, keine Datenbank (D3). Keine Netzwerkaufrufe aus der App außer zum eigenen Origin.
+- Kein „Alle OK“ / Sammel-Bestätigen von Prüfpunkten (D6).
+- Fachlogik nur in frontend/src/domain als reine Funktionen + Vitest-Test. Fachkatalog nur in domain/catalog.ts.
+- Datenmodell nur über Zod in domain/schema.ts; Änderung = SCHEMA_VERSION + Migration.
+- Design nur über Harbour-Tokens (frontend/src/styles/tokens.css). Keine Hex-Werte in components.css. Kein Tailwind.
+- Keine Secrets im Client (VITE_* ist öffentlich). Kein dangerouslySetInnerHTML. Neue Abhängigkeit → DECISIONS.md.
+- Tests/Fixtures nur mit fiktiven Daten (Musterstraße, example.org). Echte Objekt- oder Mieterdaten → .sensitive/.
+- Nach Abschluss: Eintrag in docs/briefkasten/an-claude.md (Prompt-ID, ACs, Ergebnis, offene Punkte).
+- UI-Texte deutsch, kurze Sätze, für Laien verständlich.

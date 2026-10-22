@@ -1,0 +1,23 @@
+#!/bin/sh
+# PII pre-commit gate. Blocks commits that contain potential sensitive data.
+# Enable once per clone:  git config core.hooksPath .githooks
+# Logic lives in scripts/pii_scan.py (stdlib Python only).
+
+if command -v py >/dev/null 2>&1; then
+  PY=py
+elif command -v python3 >/dev/null 2>&1; then
+  PY=python3
+else
+  PY=python
+fi
+
+"$PY" scripts/pii_scan.py --staged --quiet
+status=$?
+
+if [ "$status" -ne 0 ]; then
+  echo ""
+  echo "Commit blocked: scripts/pii_scan.py found potential PII in staged files."
+  echo "Redact it, or bypass intentionally with: git commit --no-verify"
+  exit 1
+fi
+exit 0

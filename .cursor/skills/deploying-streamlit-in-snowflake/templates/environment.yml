@@ -1,0 +1,10 @@
+name: sf_env
+channels:
+  - snowflake
+dependencies:
+  # Do NOT pin python — Snowflake selects the runtime version.
+  # Pinning python causes: "Packages not found: python==..."
+  - streamlit=1.50.0
+  - pandas
+  # - snowflake-snowpark-python
+  # Add only packages available on the Snowflake Anaconda channel.

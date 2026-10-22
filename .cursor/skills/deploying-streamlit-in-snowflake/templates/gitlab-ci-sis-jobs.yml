@@ -1,0 +1,49 @@
+# Preferred SiS deploy jobs — trigger .sis.gitlab-ci.yml and pass app config as variables.
+# Adjust STREAMLIT_* / SNOWFLAKE_* values per project. Job name suffix (_P) is optional.
+# Skip adding these if Deploy_UAT_Streamlit* / Deploy_PRD_Streamlit* already exist.
+
+Deploy_UAT_Streamlit_P:
+  stage: deploy_pre_scripts
+  variables:
+    PROJECT_ID: $CI_PROJECT_ID
+    PROJECT_NAME: $CI_PROJECT_NAME
+    SIS_APP_FOLDER: ''
+    STREAMLIT_NAME: 'YOUR_STREAMLIT_OBJECT_NAME'
+    STREAMLIT_TITLE: 'Your Streamlit Title'
+    STREAMLIT_ENTRYPOINT: 'streamlit_main.py'
+    STREAMLIT_QUERY_WAREHOUSE: 'WH_UAT_${CI_PROJECT_NAME}_DEPLOYMENT_XS'
+    SNOWFLAKE_SCHEMA: 'PS_AC_${CI_PROJECT_NAME}'
+    SNOWFLAKE_STAGE: 'STG_${CI_PROJECT_NAME}_STREAMLIT'
+  trigger:
+    include:
+      - project: 'snowflake-se-da/sf-projects/CI_template'
+        ref: 'master'
+        file: '.sis.gitlab-ci.yml'
+    strategy: depend
+  rules:
+    - if: $CI_COMMIT_BRANCH == "UAT" && $CI_COMMIT_TITLE =~ /^[A-Za-z][A-Za-z]+ [A-Za-z]+ 'DEV'? [A-Za-z]+ 'UAT'?$/
+      changes:
+        - "streamlit_src/**/*"
+
+Deploy_PRD_Streamlit_P:
+  stage: deploy_pre_scripts
+  variables:
+    PROJECT_ID: $CI_PROJECT_ID
+    PROJECT_NAME: $CI_PROJECT_NAME
+    SIS_APP_FOLDER: ''
+    STREAMLIT_NAME: 'YOUR_STREAMLIT_OBJECT_NAME'
+    STREAMLIT_TITLE: 'Your Streamlit Title'
+    STREAMLIT_ENTRYPOINT: 'streamlit_main.py'
+    STREAMLIT_QUERY_WAREHOUSE: 'WH_PRD_${CI_PROJECT_NAME}_DEPLOYMENT_XS'
+    SNOWFLAKE_SCHEMA: 'PS_AC_${CI_PROJECT_NAME}'
+    SNOWFLAKE_STAGE: 'STG_${CI_PROJECT_NAME}_STREAMLIT'
+  trigger:
+    include:
+      - project: 'snowflake-se-da/sf-projects/CI_template'
+        ref: 'master'
+        file: '.sis.gitlab-ci.yml'
+    strategy: depend
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master" && $CI_COMMIT_TITLE =~ /^[A-Za-z][A-Za-z]+ [A-Za-z]+ 'UAT'? [A-Za-z]+ 'master'?$/
+      changes:
+        - "streamlit_src/**/*"

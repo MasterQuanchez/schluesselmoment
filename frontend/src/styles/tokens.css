@@ -1,0 +1,311 @@
+/*
+ * DESIGN-TOKENS – Harbour-Theme aus dem Phil Starter Kit (docs/design/phil-theme.md).
+ * Teil 1: Kit-Tokens WORTGLEICH aus frontend/src/app/globals.css des Kits (Namen + Werte).
+ * Teil 2: App-Aliase (--c-*, --r-*, …), die components.css verwendet.
+ * Theme wechseln = Teil 1 ersetzen. Keine Hex-Werte in components.css.
+ */
+
+/* ---------- Teil 1: Harbour (hell) ---------- */
+:root {
+  /* Primary (Navy ink) — used for primary buttons, active chips, headings */
+  --theme-current-color-primary: #0b1f3a;
+  --theme-current-color-primary-90: #13294a;
+  --theme-current-color-primary-80: #1c3a66;
+  --theme-current-color-primary-70: #234b85;
+  --theme-current-color-primary-60: #2f5fa3;
+  --theme-current-color-primary-50: #5a7fb8;
+  --theme-current-color-primary-40: #8aa3cc;
+  --theme-current-color-primary-30: #b7c7e0;
+  --theme-current-color-primary-20: #dce5f2;
+  --theme-current-color-primary-10: #f1f5fb;
+  --theme-current-color-primary-fluor: #2e6be6; /* focus + vivid highlights */
+
+  /* Accent (Ocean blue) */
+  --theme-current-color-accent: #0a6cb8;
+
+  /* Background */
+  --theme-current-color-background-main: #ffffff;
+  --theme-current-color-background-framed: #f5f7fb;
+  --theme-current-color-background-brand: #0b1f3a;
+  --theme-current-color-background-brand-gradient: linear-gradient(
+    180deg,
+    #0a6cb8 0%,
+    #0b3d7c 55%,
+    #071a45 100%
+  );
+  --theme-current-color-background-glass: rgba(11, 31, 58, 0.42); /* text over photos */
+  --theme-current-color-background-alert: #c8283a;
+  --theme-current-color-background-alert-90: #e0384b;
+
+  /* Text */
+  --theme-current-color-text-regular: #0f1b2d;
+  --theme-current-color-text-medium: #5f6b7e;
+  --theme-current-color-text-disabled: #b3bccb;
+  --theme-current-color-text-contrast: #ffffff;
+  --theme-current-color-text-brand: #ffffff;
+  --theme-current-color-text-brand-muted: #b7c7e0;
+  --theme-current-color-text-success: #0e6b4d;
+  --theme-current-color-text-warning: #8a5300;
+  --theme-current-color-text-alert: #b4232a;
+  --theme-current-color-text-accent: #075a99;
+  --theme-current-color-text-info: #1c3a66;
+  --theme-current-color-text-over-color: #0b1f3a;
+
+  /* Component Borders */
+  --theme-current-color-component-border: #d5dce6;
+  --theme-current-color-component-border-focus: #0b1f3a;
+  --theme-current-color-component-border-soft: #e9edf3;
+  --theme-current-color-component-border-disabled: #e1e6ed;
+  --theme-current-color-component-background-disabled: #eef1f5;
+
+  /* Separators */
+  --theme-current-color-separator: #e3e8ef;
+  --theme-current-color-separator-medium: #f1f4f8;
+  --theme-current-color-separator-strong: #9aa5b5;
+
+  /* Status */
+  --theme-current-color-status-success: #1f9d74;
+  --theme-current-color-status-warning: #d97a00;
+  --theme-current-color-status-alert: #e5484d;
+  --theme-current-color-status-alert-hover: #f07d80;
+  --theme-current-color-status-info: #2e6be6;
+  --theme-current-color-status-success-background: #ddf3ea;
+  --theme-current-color-status-warning-background: #fdebd3;
+  --theme-current-color-status-alert-background: #fde2e3;
+  --theme-current-color-status-info-background: #e3ecfc;
+
+  /* Sidebar */
+  --theme-current-color-sidebar-background: #f5f7fb;
+
+  /* Transparency (navy-tinted, never pure black) */
+  --theme-current-color-transparentize-10: rgba(11, 31, 58, 0.06);
+  --theme-current-color-transparentize-20: rgba(11, 31, 58, 0.1);
+  --theme-current-color-transparentize-30: rgba(11, 31, 58, 0.16);
+  --theme-current-color-transparentize-50: rgba(11, 31, 58, 0.4);
+
+  /* Spacing (unchanged scale) */
+  --spacing-010: 1px;
+  --spacing-020: 2px;
+  --spacing-050: 5px;
+  --spacing-100: 10px;
+  --spacing-150: 15px;
+  --spacing-200: 20px;
+  --spacing-300: 30px;
+  --spacing-400: 40px;
+  --spacing-500: 50px;
+  --spacing-600: 60px;
+
+  /* Typography */
+  --font-family:
+    "Plus Jakarta Sans Variable", "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto,
+    sans-serif;
+
+  /* Border Radius — softer, more generous than Dojo */
+  --radius-none: 0px;
+  --radius-default: 10px;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+  --radius-2xl: 32px;
+  --radius-round: 999px;
+  --radius-circle: 50%;
+
+  /* Elevation / Shadows — soft, layered, navy-tinted */
+  --shadow-elevation-10:
+    0 1px 2px var(--theme-current-color-transparentize-10),
+    0 2px 8px var(--theme-current-color-transparentize-10);
+  --shadow-elevation-20:
+    0 2px 4px var(--theme-current-color-transparentize-10),
+    0 8px 24px var(--theme-current-color-transparentize-20);
+  --shadow-elevation-30:
+    0 4px 8px var(--theme-current-color-transparentize-10),
+    0 16px 40px var(--theme-current-color-transparentize-30);
+  --shadow-elevation-40: 0 24px 64px var(--theme-current-color-transparentize-50);
+  --shadow-button: 0 6px 16px rgba(11, 31, 58, 0.22);
+  --shadow-focus-ring: 0 0 0 3px rgba(46, 107, 230, 0.35);
+
+  /* Motion */
+  --motion-duration-instant: 0ms;
+  --motion-duration-fast: 120ms;
+  --motion-duration-normal: 220ms;
+  --motion-duration-slow: 320ms;
+  --motion-easing-default: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Component Sizing — mobile-first touch targets */
+  --size-button-standard: 52px;
+  --size-button-small: 36px;
+  --size-chip-standard: 40px;
+  --size-chip-small: 28px;
+  --size-icon-xs: 16px;
+  --size-icon-sm: 20px;
+  --size-icon-md: 24px;
+  --size-icon-lg: 40px;
+  --size-textarea-min-height: 120px;
+}
+
+/* ---------- Harbour (dunkel): explizit per data-theme oder nach Systemeinstellung ---------- */
+[data-theme="dark"] {
+  --theme-current-color-primary: #e8eef8;
+  --theme-current-color-primary-90: #d3ddef;
+  --theme-current-color-primary-80: #b7c7e0;
+  --theme-current-color-primary-70: #9fb5d8;
+  --theme-current-color-primary-60: #8fb0ea;
+  --theme-current-color-primary-50: #6d8cc0;
+  --theme-current-color-primary-40: #44628f;
+  --theme-current-color-primary-30: #2c4670;
+  --theme-current-color-primary-20: #1f3557;
+  --theme-current-color-primary-10: #16263f;
+  --theme-current-color-primary-fluor: #6f9cff;
+
+  --theme-current-color-accent: #4aa3ec;
+
+  --theme-current-color-background-main: #0d1829;
+  --theme-current-color-background-framed: #08111f;
+  --theme-current-color-background-brand: #08111f;
+  --theme-current-color-background-glass: rgba(8, 17, 31, 0.55);
+
+  --theme-current-color-text-regular: #eef2f8;
+  --theme-current-color-text-medium: #9aa8bd;
+  --theme-current-color-text-disabled: #56637a;
+  --theme-current-color-text-contrast: #0b1f3a;
+  --theme-current-color-text-brand: #ffffff;
+  --theme-current-color-text-success: #8fe3c4;
+  --theme-current-color-text-warning: #ffd29a;
+  --theme-current-color-text-alert: #ffb3b8;
+  --theme-current-color-text-accent: #7cbcf2;
+  --theme-current-color-text-info: #b7c7e0;
+
+  --theme-current-color-component-border: #2a3a55;
+  --theme-current-color-component-border-focus: #e8eef8;
+  --theme-current-color-component-border-soft: #1c2a41;
+  --theme-current-color-component-border-disabled: #223149;
+  --theme-current-color-component-background-disabled: #1a2638;
+
+  --theme-current-color-separator: #22314a;
+  --theme-current-color-separator-medium: #18243a;
+  --theme-current-color-separator-strong: #56637a;
+
+  --theme-current-color-status-success-background: #12382f;
+  --theme-current-color-status-warning-background: #3d2a10;
+  --theme-current-color-status-alert-background: #3f1a20;
+  --theme-current-color-status-info-background: #172b4f;
+
+  --theme-current-color-sidebar-background: #0a1424;
+
+  --theme-current-color-transparentize-10: rgba(0, 0, 0, 0.2);
+  --theme-current-color-transparentize-20: rgba(0, 0, 0, 0.3);
+  --theme-current-color-transparentize-30: rgba(0, 0, 0, 0.4);
+  --theme-current-color-transparentize-50: rgba(0, 0, 0, 0.6);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --theme-current-color-primary: #e8eef8;
+    --theme-current-color-primary-90: #d3ddef;
+    --theme-current-color-primary-80: #b7c7e0;
+    --theme-current-color-primary-70: #9fb5d8;
+    --theme-current-color-primary-60: #8fb0ea;
+    --theme-current-color-primary-50: #6d8cc0;
+    --theme-current-color-primary-40: #44628f;
+    --theme-current-color-primary-30: #2c4670;
+    --theme-current-color-primary-20: #1f3557;
+    --theme-current-color-primary-10: #16263f;
+    --theme-current-color-primary-fluor: #6f9cff;
+
+    --theme-current-color-accent: #4aa3ec;
+
+    --theme-current-color-background-main: #0d1829;
+    --theme-current-color-background-framed: #08111f;
+    --theme-current-color-background-brand: #08111f;
+    --theme-current-color-background-glass: rgba(8, 17, 31, 0.55);
+
+    --theme-current-color-text-regular: #eef2f8;
+    --theme-current-color-text-medium: #9aa8bd;
+    --theme-current-color-text-disabled: #56637a;
+    --theme-current-color-text-contrast: #0b1f3a;
+    --theme-current-color-text-brand: #ffffff;
+    --theme-current-color-text-success: #8fe3c4;
+    --theme-current-color-text-warning: #ffd29a;
+    --theme-current-color-text-alert: #ffb3b8;
+    --theme-current-color-text-accent: #7cbcf2;
+    --theme-current-color-text-info: #b7c7e0;
+
+    --theme-current-color-component-border: #2a3a55;
+    --theme-current-color-component-border-focus: #e8eef8;
+    --theme-current-color-component-border-soft: #1c2a41;
+    --theme-current-color-component-border-disabled: #223149;
+    --theme-current-color-component-background-disabled: #1a2638;
+
+    --theme-current-color-separator: #22314a;
+    --theme-current-color-separator-medium: #18243a;
+    --theme-current-color-separator-strong: #56637a;
+
+    --theme-current-color-status-success-background: #12382f;
+    --theme-current-color-status-warning-background: #3d2a10;
+    --theme-current-color-status-alert-background: #3f1a20;
+    --theme-current-color-status-info-background: #172b4f;
+
+    --theme-current-color-sidebar-background: #0a1424;
+
+    --theme-current-color-transparentize-10: rgba(0, 0, 0, 0.2);
+    --theme-current-color-transparentize-20: rgba(0, 0, 0, 0.3);
+    --theme-current-color-transparentize-30: rgba(0, 0, 0, 0.4);
+    --theme-current-color-transparentize-50: rgba(0, 0, 0, 0.6);
+  }
+}
+
+/* ---------- Teil 2: App-Aliase ---------- */
+:root {
+  --c-bg: var(--theme-current-color-background-framed);
+  --c-surface: var(--theme-current-color-background-main);
+  --c-surface-2: var(--theme-current-color-background-framed);
+  --c-border: var(--theme-current-color-component-border);
+  --c-text: var(--theme-current-color-text-regular);
+  --c-text-muted: var(--theme-current-color-text-medium);
+  --c-text-on-primary: var(--theme-current-color-text-contrast);
+
+  --c-primary: var(--theme-current-color-primary);
+  --c-primary-hover: var(--theme-current-color-primary-90);
+  --c-primary-soft: var(--theme-current-color-primary-10);
+  --c-accent: var(--theme-current-color-accent);
+
+  /* Tri-State: OK = success, Mangel = warning (Rezept „Tri-state check chip“ im Theme) */
+  --c-ok: var(--theme-current-color-text-success);
+  --c-ok-mark: var(--theme-current-color-status-success);
+  --c-ok-soft: var(--theme-current-color-status-success-background);
+  --c-ok-strong: var(--theme-current-color-text-success);
+  --c-defect: var(--theme-current-color-text-warning);
+  --c-defect-mark: var(--theme-current-color-status-warning);
+  --c-defect-soft: var(--theme-current-color-status-warning-background);
+  --c-danger: var(--theme-current-color-text-alert);
+  --c-focus: var(--theme-current-color-primary-fluor);
+
+  --font-sans: var(--font-family);
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-md: 15px;
+  --fs-lg: 18px;
+  --fs-xl: 30px; /* text-h1 */
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --r-sm: var(--radius-sm);
+  --r-md: var(--radius-md);
+  --r-card: var(--radius-xl);
+  --r-pill: var(--radius-round);
+  --shadow-1: var(--shadow-elevation-10);
+  --shadow-card: var(--shadow-elevation-20);
+  --shadow-fab: var(--shadow-button);
+  --ease: var(--motion-easing-default);
+
+  --tap: var(--size-button-standard);
+  --tap-chip: var(--size-chip-standard);
+  --content-max: 560px;
+}

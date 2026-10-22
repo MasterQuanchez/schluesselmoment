@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Council Report — Agent Factory Architecture</title>
+<style>
+  :root { --purple: #321850; --accent: #6254F7; --success: #10B981; --warning: #F59E0B; --error: #EF4444; --bg: #FAFBFC; --surface: #FFFFFF; --border: #E2E8F0; --text: #1A1D23; --text2: #4A5568; --text3: #718096; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+  .container { max-width: 860px; margin: 0 auto; padding: 40px 24px; }
+  h1 { font-size: 1.75rem; color: var(--purple); margin-bottom: 4px; }
+  .subtitle { color: var(--text3); font-size: 0.95rem; margin-bottom: 32px; }
+  .verdict-box { background: linear-gradient(135deg, var(--purple), var(--accent)); color: white; border-radius: 12px; padding: 28px 32px; margin-bottom: 32px; }
+  .verdict-box h2 { font-size: 1.1rem; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.85; margin-bottom: 8px; }
+  .verdict-box p { font-size: 1.15rem; line-height: 1.7; }
+  .verdict-box .first-action { margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.25); }
+  .verdict-box .first-action strong { display: block; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.85; margin-bottom: 4px; }
+  section { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 20px; overflow: hidden; }
+  section > summary, section > .section-header { padding: 16px 24px; font-weight: 600; font-size: 1rem; cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; }
+  section > summary::before { content: '▸'; transition: transform 0.2s; }
+  section[open] > summary::before { transform: rotate(90deg); }
+  section > summary::-webkit-details-marker { display: none; }
+  .section-body { padding: 0 24px 20px; }
+  .section-body p, .section-body li { color: var(--text2); font-size: 0.93rem; }
+  .section-body ul { padding-left: 20px; }
+  .section-body li { margin-bottom: 6px; }
+  .section-body li strong { color: var(--text); }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.9rem; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  th { color: var(--text3); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.03em; }
+  .conditions { counter-reset: cond; list-style: none; padding-left: 0; }
+  .conditions li { counter-increment: cond; padding-left: 28px; position: relative; margin-bottom: 10px; }
+  .conditions li::before { content: counter(cond); position: absolute; left: 0; top: 0; width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: white; font-size: 0.75rem; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.78rem; font-weight: 600; }
+  .tag-agree { background: #D1FAE5; color: #065F46; }
+  .tag-clash { background: #FEF3C7; color: #92400E; }
+  .tag-blind { background: #FEE2E2; color: #991B1B; }
+  footer { text-align: center; color: var(--text3); font-size: 0.82rem; margin-top: 40px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Council Report: Agent Factory Architecture</h1>
+<p class="subtitle">5 advisors &bull; 5 peer reviews &bull; 1 chairman &bull; 2026-04-08</p>
+
+<div class="verdict-box">
+  <h2>The Recommendation</h2>
+  <p><strong>Yes, adopt it</strong> — but scope it honestly and harden it incrementally. A thin, explicit SDLC encoded as skills + specs is the right shape for governed, repeatable AI-assisted delivery. Call it what it is: structured prompts and conventions (living policy), not a mechanically-enforced system. Start with 4 skills, not 10.</p>
+  <div class="first-action">
+    <strong>The One Thing to Do First</strong>
+    Run one real feature end-to-end through <strong>plan &rarr; implement &rarr; review &rarr; test &rarr; sync-to-devops</strong>, then measure what broke. Not a hello-world. A real, small, scoped feature with a real ADO work item. Document every friction point vs. every real issue caught. That evidence earns team buy-in.
+  </div>
+</div>
+
+<details class="section" open>
+  <summary><span class="tag tag-agree">AGREE</span> Where the Council Agrees</summary>
+  <div class="section-body">
+    <ul>
+      <li><strong>Markdown skills are legitimate.</strong> Versionable, diffable, auditable — good properties for enterprise DT.</li>
+      <li><strong>Handoff + wikilinked specs</strong> give narrative traceability without tooling lock-in.</li>
+      <li><strong>Human checkpoints</strong> at phase boundaries are necessary for compliance, even if they cost throughput.</li>
+      <li><strong>This is process glue, not automation.</strong> The team must understand it as such.</li>
+      <li><strong>Cursor coupling</strong> is a real vendor risk but acceptable at this stage.</li>
+    </ul>
+  </div>
+</details>
+
+<details class="section">
+  <summary><span class="tag tag-clash">CLASH</span> Where the Council Clashes</summary>
+  <div class="section-body">
+    <table>
+      <tr><th>Question</th><th>Camp A</th><th>Camp B</th></tr>
+      <tr><td>Is "architecture" the right word?</td><td>Yes — coherent minimal governance structure</td><td>No — shared prompts with no enforcement; oversells it</td></tr>
+      <tr><td>Ship all 10 skills at once?</td><td>Yes — compounding value from full loop</td><td>No — prove with 3-4 first</td></tr>
+      <tr><td>TDD mandate</td><td>Premature where test infra doesn't exist</td><td>Fine as aspirational policy</td></tr>
+      <tr><td>Spec graph scalability</td><td>Biggest long-term asset</td><td>Rots without automated link-checking and ownership</td></tr>
+    </table>
+    <p style="margin-top:12px"><strong>Deepest clash:</strong> Compounding organizational memory (upside) vs. compounding ceremony and three parallel truths (downside). Which dominates depends entirely on curation discipline.</p>
+  </div>
+</details>
+
+<details class="section">
+  <summary><span class="tag tag-blind">BLIND SPOTS</span> What the Peer Reviews Caught</summary>
+  <div class="section-body">
+    <ul>
+      <li><strong>Incentives &amp; ownership.</strong> No skill assigns a human owner. Under deadline pressure, the path of least resistance is to skip the pipeline. Nothing detects this.</li>
+      <li><strong>Partial adoption.</strong> DT spans people who won't use Cursor, legacy systems, non-agent workflows. The architecture is silent on these cases.</li>
+      <li><strong>Cost of the process.</strong> Token spend, senior time curating specs, ceremony overhead — none measured or bounded.</li>
+      <li><strong>AI-specific governance.</strong> Data handling, model usage policies, prompt audit trails for regulated contexts.</li>
+      <li><strong>Exception paths.</strong> Hotfixes, spikes, and legacy glue don't fit the pipeline. Without documented fast-paths, teams invent ad-hoc ones that break traceability.</li>
+    </ul>
+  </div>
+</details>
+
+<details class="section">
+  <summary>Conditions for Success</summary>
+  <div class="section-body">
+    <ol class="conditions">
+      <li><strong>Start with 4 skills, not 10.</strong> Plan, implement, review, test. Add discover, council, simplify, design only after the core loop is proven.</li>
+      <li><strong>Assign a human owner per skill</strong> accountable for accuracy and adoption.</li>
+      <li><strong>Document a fast-path</strong> (hotfix/spike) with lighter ceremony but equivalent audit trail.</li>
+      <li><strong>Lint the spec graph.</strong> Broken wikilinks and missing frontmatter should fail CI.</li>
+      <li><strong>Measure from week one:</strong> lead time (plan &rarr; merged PR) and spec-to-ADO sync accuracy.</li>
+    </ol>
+  </div>
+</details>
+
+<details class="section">
+  <summary>Advisor Details</summary>
+  <div class="section-body">
+    <p><strong>Contrarian:</strong> Zero guarantees in markdown-only skills; spec graph rots at scale; needs versioning, link automation, exception paths, and operational metrics.</p>
+    <p style="margin-top:10px"><strong>First Principles:</strong> Sound first-principles fit for governed delivery. Thin, explicit SDLC as living policy is the minimal correct shape — not optimized for throughput, but coherent for compliance.</p>
+    <p style="margin-top:10px"><strong>Expansionist:</strong> Governance-as-product is the hidden upside. Compounding organizational memory, auditable process, portable across tools. Biggest leverage: ADO integration + human checkpoints as the audit spine.</p>
+    <p style="margin-top:10px"><strong>Outsider:</strong> Mainly shared prompts dressed as architecture. Three parallel truths risk (markdown, ADO, chat). Jargon hides unclear thinking. Newcomers see ceremony.</p>
+    <p style="margin-top:10px"><strong>Executor:</strong> Works in practice as process glue. Prove with one vertical slice first. Bottlenecks: checkpoint queues, enforcement drift, ADO sync fragility, TDD without test infra.</p>
+  </div>
+</details>
+
+<details class="section">
+  <summary>Peer Review Consensus</summary>
+  <div class="section-body">
+    <p><strong>Strongest advisor:</strong> First Principles (4/5 votes). Clear thesis, honest limits, decision-oriented verdict.</p>
+    <p style="margin-top:8px"><strong>Unanimous blind spots:</strong> No success metrics defined. No incentive/ownership model. No cost accounting. No partial-adoption story. No AI-governance layer.</p>
+  </div>
+</details>
+
+<footer>Generated by LLM Council &bull; 5 advisors, 5 peer reviewers, 1 chairman &bull; 2026-04-08</footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,30 @@
+# models.toml — role→model. The one knob to edit as the roster changes.
+#
+# Skills name roles, never models, so retiering a stage is a one-line edit here. The reasoning
+# (why a role gets a model, and the verifiability rule that decides) lives in routing.md.
+#
+# The orchestrator resolves a spawn's model as: user-named models for the run first (each mapped to a
+# session-available slug), else this table by role — and passes the slug explicitly on the spawn
+# either way, never relying on an implicit default. See orchestrate → "Spawning".
+#
+# Model names must match the slugs your Cursor plan actually accepts — a slug Cursor doesn't
+# recognise is silently rejected and the spawn falls back to a default. Check the slugs against
+# the current roster before trusting a route. Expected drift; treat it as maintenance.
+
+[roles]
+# The orchestrator is NOT set here. It is whatever model you start the session with, so it is a
+# launch decision, not configuration. Recommended for an epic-scale run:
+# claude-opus-4-8-thinking-high — it plans, verifies, and judges drift.
+
+implementer = "cursor-grok-4.5-high"
+# Fast, cheap, strong at mechanical decomposition against a locked plan. Its known weakness is
+# proving claims against source text rather than behaviour, which is exactly what the separate
+# tester exists to catch.
+
+tester = "cursor-grok-4.5-high"
+# Fresh context, never the implementer's. Cheap enough that a tester round is affordable where an
+# orchestrator gate is not.
+
+explorer = "composer-2.5"
+# Broad codebase reconnaissance — find patterns, integration points, prior art. Reading is
+# mechanical; fan it out and keep judgment on the orchestrator.

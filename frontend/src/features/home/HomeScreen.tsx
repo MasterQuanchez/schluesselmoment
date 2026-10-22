@@ -1,0 +1,117 @@
+import { useEffect, useState } from 'react';
+import { APP_CONFIG } from '@/config';
+import { PROTOCOL_TYPE_LABEL } from '@/domain/catalog';
+import { createProtocol, deletionDate } from '@/domain/protocol';
+import type { Protocol, ProtocolType } from '@/domain/schema';
+import { href, navigate } from '@/router';
+import { deleteProtocol, getSettings, listProtocols, saveProtocol } from '@/storage/db';
+import { Icon } from '@/ui/Icon';
+import { TopBar, useToast } from '@/ui/kit';
+
+export function HomeScreen() {
+  const [items, setItems] = useState<Protocol[] | null>(null);
+  const [choose, setChoose] = useState(false);
+  const [toast, showToast] = useToast();
+
+  const reload = () =>
+    void listProtocols()
+      .then(setItems)
+      .catch(() => setItems([]));
+  useEffect(reload, []);
+
+  const start = async (type: ProtocolType) => {
+    const settings = await getSettings();
+    const p = { ...createProtocol(type), inspector: settings.inspectorName };
+    await saveProtocol(p);
+    navigate({ name: 'basis', id: p.id });
+  };
+
+  const remove = async (p: Protocol) => {
+    // Bewusst nativer Dialog: verhindert versehentliches Löschen (Fotos werden mitgelöscht)
+    if (!window.confirm(`Protokoll „${p.property.street || 'ohne Adresse'}“ inkl. Fotos löschen?`)) return;
+    await deleteProtocol(p.id);
+    showToast('Gelöscht');
+    reload();
+  };
+
+  return (
+    <>
+      <TopBar
+        title="Schlüsselmoment"
+        action={
+          <a className="btn btn--ghost" href={href({ name: 'settings' })}>
+            Mehr
+          </a>
+        }
+      />
+      <main className="page stack">
+        <div>
+          <h1 className="page-title">Protokolle</h1>
+          <p className="page-sub">Alle Daten bleiben auf diesem Gerät, bis Sie das PDF teilen.</p>
+        </div>
+
+        {choose ? (
+          <div className="card stack celebrate">
+            <b>Welches Protokoll?</b>
+            {(Object.keys(PROTOCOL_TYPE_LABEL) as ProtocolType[]).map((t) => (
+              <button key={t} type="button" className="btn btn--block" onClick={() => void start(t)}>
+                {PROTOCOL_TYPE_LABEL[t]}
+              </button>
+            ))}
+            <button type="button" className="btn btn--ghost" onClick={() => setChoose(false)}>
+              Abbrechen
+            </button>
+          </div>
+        ) : null}
+
+        {items === null ? (
+          <div className="empty">Lädt …</div>
+        ) : items.length === 0 ? (
+          <div className="empty">
+            Noch keine Protokolle.
+            <br />
+            Mit <b>+</b> ein neues starten.
+          </div>
+        ) : (
+          <ul className="list">
+            {items.map((p) => {
+              const done = p.rooms.filter((r) => r.completedAt).length;
+              return (
+                <li key={p.id} className="row">
+                  <a
+                    className="list-item grow"
+                    href={href({ name: p.status === 'signed' ? 'finish' : 'rooms', id: p.id })}
+                  >
+                    <div className="grow">
+                      <div className="list-item__title">{p.property.street || 'Ohne Adresse'}</div>
+                      <div className="small muted">
+                        {PROTOCOL_TYPE_LABEL[p.type]} · {new Date(p.createdAt).toLocaleDateString('de-DE')} ·{' '}
+                        {p.status === 'signed' ? 'unterschrieben' : `${done}/${p.rooms.length} Räume`}
+                        {deletionDate(p, APP_CONFIG.retentionDays)
+                          ? ` · wird am ${deletionDate(p, APP_CONFIG.retentionDays)?.toLocaleDateString('de-DE')} gelöscht`
+                          : ''}
+                      </div>
+                    </div>
+                    {p.status === 'signed' ? <span className="badge badge--ok">✓</span> : null}
+                  </a>
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--danger"
+                    aria-label="Löschen"
+                    onClick={() => void remove(p)}
+                  >
+                    <Icon name="trash" />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </main>
+      <button type="button" className="fab" aria-label="Neues Protokoll" onClick={() => setChoose(true)}>
+        <Icon name="plus" size={28} />
+      </button>
+      {toast}
+    </>
+  );
+}
