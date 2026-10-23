@@ -439,8 +439,8 @@ export const KEY_LABEL = {
 
 /** Geschäftsregeln an einer Stelle – leicht änderbar, testbar */
 export const RULES = {
-  /** Sprachnachricht 30.11.2025: „Minimum zwei Bilder“ bei Schaden */
-  minPhotosPerDefect: 2,
+  /** Fachseite 23.10.: ein Pflicht-Foto (vorher 2, Sprachnachricht 30.11.2025). */
+  minPhotosPerDefect: 1,
   /** Mangel braucht eine Beschreibung */
   defectNeedsDescription: true,
   maxPhotoEdgePx: 1600,

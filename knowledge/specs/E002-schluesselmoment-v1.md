@@ -55,7 +55,7 @@ v1 (Nov./Dez. 2025, React/Vite) wird neu aufgebaut: der API-Key lag im Bundle, l
 - AC1: Given a new protocol with features (2 rooms, Einbauküche, Balkon), when rooms are generated, then the list is Flur, Küche, Bad, Zimmer 1, Zimmer 2, Balkon, Eingangstür & Briefkasten, Abschluss-Prüfungen, and the Balkon has no Fenster/Tür/Heizkörper.
 - AC2: Given a room, when the user taps „Keine Mängel“, then no check changes state and the room cannot be completed until every check is ✓ or ⚠; ein Detail zu setzen bestätigt nur dieses Element.
 - AC3: Given a chip, when tapped repeatedly, then it cycles open → OK → Mangel → open, and the defect data survives a reset (no data loss from mis-taps).
-- AC4: Given a check marked Mangel, when the user tries to complete the room, then it is blocked until a description and ≥ 2 photos exist.
+- AC4: Given a check marked Mangel, when the user tries to complete the room, then it is blocked until a description and ≥ RULES.minPhotosPerDefect (derzeit 1) Foto exist.
 - AC5: Given a Schnellauswahl term, when tapped, then it is appended to the note (no duplicates) and the text remains editable; own terms from „Mehr“ appear in every room on this device.
 - AC6: Given any room incomplete or missing names/address, when on Abschluss, then „Inhalt festschreiben“ is disabled and the open points are listed as links.
 - AC7: Given status „signing“, when content screens are opened, then all inputs are read-only; „Zurück zur Bearbeitung“ discards signatures.

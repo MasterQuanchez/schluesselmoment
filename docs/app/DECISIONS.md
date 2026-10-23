@@ -8,7 +8,7 @@
 | D4 | 22.10.2026 | Eigene IndexedDB-Schicht, eigenes Unterschriftsfeld, eigene Icons statt Dexie/signature_pad/lucide | weniger Abhängigkeiten; API so geschnitten, dass ein Austausch jederzeit möglich ist | Vorläufig |
 | D5 | 22.10.2026 | Plain CSS mit Harbour-Tokens (Kit-Namen wortgleich) statt Tailwind/Next.js aus dem Kit | reine SPA/PWA ohne Server; Theme-Wechsel = eine Datei; Kit-Token-Namen bleiben kompatibel | Entschieden |
 | D6 | 22.10.2026 | **Pflicht-Durchklicken:** „Keine Mängel“ setzt nur die Raum-Entscheidung; jeder Punkt wird einzeln auf ✓/⚠ gesetzt; kein „Alle OK“-Knopf | Fachseite: besonders Einbauküche; Kernversprechen „nichts vergessen“ | Entschieden (Gespräch 22.10.) |
-| D7 | 22.10.2026 | Mangel braucht Beschreibung + mind. 2 Fotos (`RULES` in catalog.ts) | Sprachnachricht 30.11.2025 | Entschieden (Zahl änderbar) |
+| D7 | 22.10.2026 | Mangel braucht Beschreibung + 1 Pflicht-Foto (Fachseite 23.10.; vorher 2) (`RULES` in catalog.ts) | Sprachnachricht 30.11.2025, Zahl geändert 23.10. | Entschieden |
 | D8 | 22.10.2026 | Unterschrift: festschreiben → alle unterschreiben → versiegeln (SHA-256); „Zurück“ verwirft Unterschriften | Unterschrift muss sich auf einen festen Inhalt beziehen | Entschieden |
 | D9 | 22.10.2026 | Unterschrift = einfache elektronische Signatur (gezeichnet auf dem Gerät, vor Ort) | üblich für Wohnungsübergaben; kein Rechtsrat | Entschieden – rechtlich durch Fachseite prüfen lassen |
 | D10 | 22.10.2026 | Schnellauswahl: Standardliste zentral in `catalog.ts` (kommt per App-Update auf alle Geräte) + eigene Begriffe je Gerät („Mehr“). Keine Auswertung, was Nutzer häufig schreiben | Fachseite: „vorgegeben, aber anpassbar“ | Entschieden |
@@ -17,7 +17,7 @@
 | D13 | 22.10.2026 | Versand über Teilen-Menü (Web Share API) → E-Mail-App mit PDF als Anhang. Empfänger werden in die Zwischenablage kopiert (das Teilen-Menü kann keine Empfänger vorbelegen) | kein Backend; Kunde und Mitarbeiter bekommen das PDF | Entschieden – auf echtem Android-Gerät testen |
 | D14 | 22.10.2026 | Versendete Protokolle werden 30 Tage nach Versand automatisch vom Gerät gelöscht (inkl. Fotos); Entwürfe nie automatisch | Datensparsamkeit (Fotos, später IBAN) | Vorgeschlagen – Frist mit Fachseite bestätigen |
 | D15 | 22.10.2026 | Preise später; Datenmodell hat schon `quantity`, `unit`, `unitPriceCents` je Mangel | Preisliste existiert noch nicht | Entschieden |
-| D17 | 22.10.2026 | Hosting: Cloudflare Pages + Cloudflare Access (E-Mail-PIN, nur freigegebene Adressen) statt Passwort in der App | gewerblich kostenlos; echter Schutz statt Kosmetik; kein eigener Server | Vorgeschlagen – Moritz bestätigt |
+| D17 | 22.10.2026 | Hosting: Cloudflare Pages + Cloudflare Access (E-Mail-PIN, nur freigegebene Adressen) statt Passwort in der App | gewerblich kostenlos; echter Schutz statt Kosmetik; kein eigener Server | Zurückgestellt bis nach Feinschliff; bis dahin noindex |
 | D18 | 22.10.2026 | E-Mail-Versand v1: Teilen-Menü → E-Mail-App mit PDF-Anhang; Empfänger per Einfügen. Vollautomatisch vorbelegt (An + Anhang) nur mit nativer Android-Hülle (Capacitor) – Option für später | Web-Apps können Empfänger und Anhang nicht gemeinsam vorbelegen (mailto: kann keine Anhänge) | Entschieden für v1 |
 | D16 | 22.10.2026 | Repo = Phil Starter Kit; Next.js-Frontend und FastAPI-Backend des Kits entfernt, App in `frontend/` (Vite). Kit-Governance (Hooks, Skills, Specs, Data Safety) bleibt | D3 + D5 | Entschieden |
 | D23 | 22.10.2026 | Demo-Protokoll in Einstellungen, PDF mit DEMO-Wasserzeichen | Vorführung und Test von Unterschrift und PDF ohne Raum-für-Raum-Durchklick. Erkennbar an „Erstellt von“ = Demo (Feld gesperrt), Wasserzeichen, Betreff und Keyword `demo` | Entschieden |
@@ -32,6 +32,8 @@
 | D30 | 23.10.2026 | Installationshinweis iOS / Android-Install-Angebot | Nicht installiertes iOS-Safari bekommt einen wegklickbaren Hinweis zum Home-Bildschirm. Android zeigt „App installieren“ nur, wenn der Browser `beforeinstallprompt` schickt. | Entschieden |
 | D31 | 23.10.2026 | Schriften nicht als data-URL einbetten (`assetsInlineLimit: 0`) | Die CSP erlaubt Schriften nur von der eigenen Adresse (`font-src 'self'`). Eingebettete data-URLs würden blockiert. | Entschieden |
 | D32 | 23.10.2026 | Python-Werkzeuge auf Windows über `py -3` | `python` ist hier der Store-Stub. In der CI ab SM-06. | Entschieden |
+| D33 | 23.10.2026 | Zielgeräte: Android (Mitarbeiter) und iPhone (Fachseite) gleichrangig; jeder Klickpfad auf Pixel 7 und iPhone 15 | Beide Geräte kommen im Termin vor. Ein Klickpfad gilt erst, wenn er auf beiden Viewports durchläuft. | Entschieden |
+| D34 | 23.10.2026 | Bis D17 gilt noindex | Zugangsschutz (D17) ist zurückgestellt. Bis dahin `X-Robots-Tag`, `robots.txt` und Meta-Tag `noindex, nofollow`. | Entschieden |
 | D35 | 23.10.2026 | pdfjs-dist nur als devDependency, nur in `frontend/tests/` zum Rendern der PDF-Seiten | Kein CDN. Die App erzeugt das PDF mit pdf-lib und lädt pdfjs nicht. | Entschieden |
 
 D19/D20 bewusst nicht vergeben (SM-01).

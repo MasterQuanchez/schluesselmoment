@@ -2,6 +2,24 @@
 
 <!-- Neue Einträge oben. Format: ## TT.MM. · SM-xx · Bahn X · Kurztitel -->
 
+## 23.10. · SM-15 · Zusatz · 1 Foto, noindex, Zielgeräte
+
+Prompt-ID: SM-15-Zusatz (Entscheidungen 23.10.).
+ACs: AC4 „≥ RULES.minPhotosPerDefect (derzeit 1) Foto“.
+Entscheidungen: D7 „1 Pflicht-Foto (Fachseite 23.10.; vorher 2)“. D17 Status „Zurückgestellt bis nach Feinschliff; bis dahin noindex“. D33 Zielgeräte Android und iPhone gleichrangig, Klickpfad auf Pixel 7 und iPhone 15. D34 verweist auf noindex bis D17. D35 liegt im Commit davor (pdfjs-dist nur im Test).
+Ergebnis: GRÜN. typecheck ✓ · test ✓ (33, Vitest 4.1.12) · lint ✓ (Exit 0). Klickpfad Pixel 7 und iPhone 15, jeweils „Fehler: keine“. Küche: Mangel ohne Foto, Knopf „Wände: 1 Foto fehlt“, ein Foto, Vorschlag „Dübellöcher“, Fertig.
+noindex: `X-Robots-Tag` in `_headers` und `vercel.json`, `robots.txt` sperrt `/`, Meta-Tag im HTML.
+Offene Punkte: D17 (Zugangsschutz) bleibt zurückgestellt. Kein echtes iPhone, der Klickpfad läuft im Chromium mit Geräteprofil.
+
+## 23.10. · SM-17 · Bahn C · PDF-Seitenumbrüche
+
+Prompt-ID: SM-17. Commit `6b76e81`.
+Blöcke werden gemessen und dann gezeichnet. Ein Mangel (Zeile, Text, Foto-Reihe, Unterschrift) bleibt auf einer Seite, außer er ist allein höher als die Seite: dann erst nach einer ganzen Foto-Reihe. Raumkopf nicht allein am Seitenende, kurzer Raum ohne Mangel bleibt zusammen. Fortsetzung „Raum (Fortsetzung)“ in text-medium. Zähler, Schlüssel und Unterschriften je ein Block; Unterschriften und Versiegelung auf einer Seite. Fotohöhe aus dem Seitenverhältnis, max. 160 pt, gemischte Reihe oben bündig. Fußzeile, Seitenzahl und DEMO-Wasserzeichen unverändert.
+Test: drei Mängel mit je Hoch- und Querformat und langem Text. Layout-Protokoll nur im Test. Seitenbilder `frontend/test-results/sm17/` (gitignored), gerendert mit lokalem pdfjs-dist, ohne CDN.
+Entscheidung: D35.
+Prüfung: typecheck ✓ · test ✓ (33) · lint ✓. Klickpfad siehe Eintrag darüber.
+Offene Punkte: keine.
+
 ## 23.10. · SM-10 · Bahn A + D · Morgen-Abschluss
 
 Prompt-ID: SM-10 Morgen-Abschluss.

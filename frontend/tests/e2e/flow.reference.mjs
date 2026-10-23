@@ -90,7 +90,7 @@ await shot(page, '04-flur-alle-bestaetigt');
 await page.getByRole('button', { name: /Flur fertig – weiter/ }).waitFor();
 await shot(page, 'sm11-fertig');
 await page.getByRole('button', { name: /Flur fertig – weiter/ }).click();
-// Küche: übrige Punkte OK, dann Wände auf Mangel. Ein Foto reicht nicht.
+// Küche: Mangel ohne Foto schließen, ein Foto nachreichen.
 await page.getByRole('heading', { name: 'Küche', level: 1 }).waitFor();
 await tapAllOpen();
 await shot(page, '05-kueche-schnellcheck');
@@ -98,9 +98,15 @@ await page.getByRole('button', { name: /^Wände:/ }).click();
 const walls = page.getByRole('dialog');
 await walls.getByRole('heading', { name: 'Wände' }).waitFor();
 await shot(page, 'sm16-sheet');
-await walls.locator('input[type=file]:not([capture])').setInputFiles(['tests/e2e/fixtures/orient6.jpg']);
-await walls.locator('.thumb img').first().waitFor();
-const orient = await walls
+await walls.getByRole('button', { name: 'Schließen – 1 Foto fehlt noch' }).click();
+await page.getByRole('button', { name: /Wände: 1 Foto fehlt/ }).waitFor();
+await shot(page, 'sm16-foto-fehlt');
+await page.getByRole('button', { name: /Wände: 1 Foto fehlt/ }).click();
+const again = page.getByRole('dialog');
+await again.locator('#sheet-photos').waitFor();
+await again.locator('input[type=file]:not([capture])').setInputFiles(['tests/e2e/fixtures/orient6.jpg']);
+await again.locator('.thumb img').first().waitFor();
+const orient = await again
   .locator('.thumb img')
   .first()
   .evaluate(async (img) => {
@@ -109,16 +115,6 @@ const orient = await walls
   });
 console.log('EXIF-Foto:', orient.w, '×', orient.h);
 if (!(orient.w > 0 && orient.w < orient.h)) errors.push(`EXIF-Orientierung: ${orient.w}×${orient.h}`);
-await walls.getByRole('button', { name: 'Schließen – 1 Foto fehlt noch' }).click();
-await page.getByRole('button', { name: /Wände: 1 Foto fehlt/ }).waitFor();
-await shot(page, 'sm16-foto-fehlt');
-await page.getByRole('button', { name: 'Keine Mängel' }).click();
-await page.getByText('Es ist noch ein Mangel markiert').waitFor();
-await page.getByRole('button', { name: /Wände: 1 Foto fehlt/ }).click();
-const again = page.getByRole('dialog');
-await again.locator('#sheet-photos').waitFor();
-await again.locator('input[type=file]:not([capture])').setInputFiles(['tests/e2e/fixtures/foto2.jpg']);
-await again.locator('.thumb img').nth(1).waitFor();
 await again.getByRole('button', { name: 'Dübellöcher', exact: true }).click();
 await shot(page, 'sm16-mangel');
 await again.getByRole('button', { name: 'Fertig', exact: true }).click();
