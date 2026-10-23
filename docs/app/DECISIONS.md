@@ -32,6 +32,7 @@
 | D30 | 23.10.2026 | Installationshinweis iOS / Android-Install-Angebot | Nicht installiertes iOS-Safari bekommt einen wegklickbaren Hinweis zum Home-Bildschirm. Android zeigt „App installieren“ nur, wenn der Browser `beforeinstallprompt` schickt. | Entschieden |
 | D31 | 23.10.2026 | Schriften nicht als data-URL einbetten (`assetsInlineLimit: 0`) | Die CSP erlaubt Schriften nur von der eigenen Adresse (`font-src 'self'`). Eingebettete data-URLs würden blockiert. | Entschieden |
 | D32 | 23.10.2026 | Python-Werkzeuge auf Windows über `py -3` | `python` ist hier der Store-Stub. In der CI ab SM-06. | Entschieden |
+| D35 | 23.10.2026 | pdfjs-dist nur als devDependency, nur in `frontend/tests/` zum Rendern der PDF-Seiten | Kein CDN. Die App erzeugt das PDF mit pdf-lib und lädt pdfjs nicht. | Entschieden |
 
 D19/D20 bewusst nicht vergeben (SM-01).
 
