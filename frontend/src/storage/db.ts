@@ -7,6 +7,7 @@
  */
 import { isExpired } from '@/domain/protocol';
 import { type PhotoRecord, Protocol, Settings } from '@/domain/schema';
+import { migrateProtocol } from './migrate';
 
 const DB_NAME = 'schluesselmoment';
 const DB_VERSION = 2; // v2: Store „settings“
@@ -73,7 +74,7 @@ export async function getProtocol(id: string): Promise<Protocol | null> {
   const db = await open();
   const raw = await wrap(db.transaction(P).objectStore(P).get(id));
   if (!raw) return null;
-  const parsed = Protocol.safeParse(raw);
+  const parsed = Protocol.safeParse(migrateProtocol(raw));
   if (!parsed.success) {
     console.error('Protokoll beschädigt oder veraltet', parsed.error);
     throw new Error('Protokoll konnte nicht gelesen werden (Datenformat).');
@@ -85,7 +86,7 @@ export async function listProtocols(): Promise<Protocol[]> {
   const db = await open();
   const all = (await wrap(db.transaction(P).objectStore(P).getAll())) as unknown[];
   return all
-    .map((x) => Protocol.safeParse(x))
+    .map((x) => Protocol.safeParse(migrateProtocol(x)))
     .filter((r) => r.success)
     .map((r) => r.data)
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));

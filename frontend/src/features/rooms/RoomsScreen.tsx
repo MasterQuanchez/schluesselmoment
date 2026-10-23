@@ -1,4 +1,4 @@
-import { getTemplate, roomProgress } from '@/domain/protocol';
+import { roomProgress, roomStatusLabel } from '@/domain/protocol';
 import { href } from '@/router';
 import { useProtocol } from '@/storage/useProtocol';
 import { Icon } from '@/ui/Icon';
@@ -29,23 +29,21 @@ export function RoomsScreen({ id }: { id: string }) {
         <ul className="list">
           {p.rooms.map((r) => {
             const prog = roomProgress(r);
-            const defects = Object.values(r.checks).filter((s) => s === 'defect').length;
+            const status = roomStatusLabel(r);
             return (
               <li key={r.id}>
                 <a className="list-item" href={href({ name: 'room', id, roomId: r.id })}>
                   <div className="grow">
                     <div className="list-item__title">{r.label}</div>
                     <div className="small muted">
-                      {getTemplate(r).label !== r.label ? `${getTemplate(r).label} · ` : ''}
                       {prog.done}/{prog.total} geprüft
                     </div>
                   </div>
-                  {defects > 0 ? (
-                    <span className="badge badge--defect">
-                      {defects} {defects > 1 ? 'Mängel' : 'Mangel'}
+                  {status ? (
+                    <span className={status.tone === 'ok' ? 'badge badge--ok' : 'badge badge--defect'}>
+                      {status.label}
                     </span>
                   ) : null}
-                  {r.completedAt ? <span className="badge badge--ok">✓ erledigt</span> : null}
                   <Icon name="next" />
                 </a>
               </li>

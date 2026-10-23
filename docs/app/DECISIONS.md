@@ -35,6 +35,9 @@
 | D33 | 23.10.2026 | Zielgeräte: Android (Mitarbeiter) und iPhone (Fachseite) gleichrangig; jeder Klickpfad auf Pixel 7 und iPhone 15 | Beide Geräte kommen im Termin vor. Ein Klickpfad gilt erst, wenn er auf beiden Viewports durchläuft. | Entschieden |
 | D34 | 23.10.2026 | Bis D17 gilt noindex | Zugangsschutz (D17) ist zurückgestellt. Bis dahin `X-Robots-Tag`, `robots.txt` und Meta-Tag `noindex, nofollow`. | Entschieden |
 | D35 | 23.10.2026 | pdfjs-dist nur als devDependency, nur in `frontend/tests/` zum Rendern der PDF-Seiten | Kein CDN. Die App erzeugt das PDF mit pdf-lib und lädt pdfjs nicht. | Entschieden |
+| D36 | 23.10.2026 | Unterschrift nennt den fehlenden Grund; Übergabe am plus optionales Einzug- oder Auszugsdatum | Der gesperrte Knopf sagt „Noch 1 Unterschrift fehlt“. `handoverOn` ist Pflicht (bestehende Protokolle: Kalendertag von `createdAt`). `moveInOn` nur bei Übergabe, `moveOutOn` nur bei Abnahme. Schemaversion 2. | Entschieden |
+| D37 | 23.10.2026 | PDF: Jakarta (Überschriften) + Inter (Text), statisch eingebettet, tnum eingefroren | Plus Jakarta Sans SemiBold für Titel, Raumüberschriften und Kennzahlen. Inter Regular/Medium/SemiBold für Text und Tabellen. Statische TTFs, tabellarische Ziffern eingefroren, auf Latein zugeschnitten. Fehlt die Schrift, Helvetica, nie Times. | Entschieden |
+| D38 | 23.10.2026 | PDF-Layout „Auf einen Blick“ + Prüfsumme statt Versiegelt | Seite 1 mit Kennzahlen und Mängelübersicht (Seitenzahlen im zweiten Durchlauf). Unten die Prüfsumme als SHA-256, kein QR-Code. | Entschieden |
 
 D19/D20 bewusst nicht vergeben (SM-01).
 

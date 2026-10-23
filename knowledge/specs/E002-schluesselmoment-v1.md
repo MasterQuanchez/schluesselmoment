@@ -90,3 +90,4 @@ Siehe `docs/app/DECISIONS.md` (D1–D16).
 - 2026-10-22 SM-13/13a (`540ddd2`, `c1a75cb`, `28d569a`): App-Icon F7, weißer Start, Wortmarke nur auf der Startseite (D24). Splash bleibt offen.
 - 2026-10-23 SM-14 (`3e47ae6`): Secret-Check. Kein Live-Schlüssel. PII-Treffer im Lockfile und in der Skill-Doku.
 - 2026-10-23 SM-16 (`da7b167`, `32af97d`, `e9fda74`): Gesperrte Zustände nennen Element und Grund (D26). Mangel-Vorschläge je Element, Raum-Notiz nur Zustandsbegriffe (D27). Fotos im PDF beim Mangel bzw. beim Zähler, kein Sammelanhang (D28, AC13). D25 war bereits SM-10.
+- 2026-10-23 SM-18: Unterschrift-Feld und Liste, Sheet-Fuß, Raumliste mit einer Status-Pill, Ausstattung in zwei Gruppen (D36). Felder `handoverOn`, `moveInOn`, `moveOutOn`, Schemaversion 2. PDF gibt die Felder noch nicht aus (SM-20).

@@ -33,7 +33,7 @@ export function TopBar({
 const STEPS = [
   { key: 'basis', label: 'Basis' },
   { key: 'rooms', label: 'Räume' },
-  { key: 'meters', label: 'Zähler/Schlüssel' },
+  { key: 'meters', label: 'Zähler' },
   { key: 'finish', label: 'Abschluss' },
 ] as const;
 

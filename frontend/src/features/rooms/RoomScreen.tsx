@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CHECKS, INVENTORY, RULES } from '@/domain/catalog';
 import {
   appendPhrase,
@@ -7,6 +7,7 @@ import {
   cycleCheck,
   emptyDefect,
   getTemplate,
+  inventoryGroups,
   issueLabel,
   markHasDefects,
   markNoDefects,
@@ -16,6 +17,7 @@ import {
 } from '@/domain/protocol';
 import type { CheckState, Protocol, Room } from '@/domain/schema';
 import { navigate } from '@/router';
+import { photoUrl } from '@/storage/photos';
 import { useProtocol } from '@/storage/useProtocol';
 import { useSettings } from '@/storage/useSettings';
 import { Icon } from '@/ui/Icon';
@@ -23,6 +25,96 @@ import { Loading, StepNav, Stepper, TopBar, useToast } from '@/ui/kit';
 import { ElementSheet } from './ElementSheet';
 
 const STATE_LABEL: Record<CheckState, string> = { open: 'nicht geprüft', ok: 'in Ordnung', defect: 'Mangel' };
+
+function MiniPhoto({ id }: { id: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void photoUrl(id).then((next) => {
+      if (alive) setUrl(next);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [id]);
+  if (!url) return <span className="card-thumbs__ph" />;
+  return <img src={url} alt="" />;
+}
+
+function InventoryGroups({
+  ids,
+  room,
+  locked,
+  onChange,
+}: {
+  ids: readonly string[];
+  room: Room;
+  locked: boolean;
+  onChange: (itemId: string, value: boolean | number) => void;
+}) {
+  const groups = inventoryGroups(ids);
+  return (
+    <div className="stack">
+      {groups.present.length ? (
+        <div className="stack">
+          <h3 className="subhead">Vorhanden</h3>
+          {groups.present.map((itemId) => {
+            const def = INVENTORY[itemId];
+            if (!def) return null;
+            const value = room.inventory[itemId];
+            return (
+              <div key={itemId} className="switch-row">
+                <span className="grow">{def.label}</span>
+                <div className="row">
+                  <button
+                    type="button"
+                    className="chip chip--option"
+                    aria-label={`${def.label}: Ja`}
+                    aria-pressed={value === true}
+                    disabled={locked}
+                    onClick={() => onChange(itemId, true)}
+                  >
+                    Ja
+                  </button>
+                  <button
+                    type="button"
+                    className="chip chip--option"
+                    aria-label={`${def.label}: Nein`}
+                    aria-pressed={value === false}
+                    disabled={locked}
+                    onClick={() => onChange(itemId, false)}
+                  >
+                    Nein
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
+      {groups.counts.length ? (
+        <div className="stack">
+          <h3 className="subhead">Anzahl</h3>
+          {groups.counts.map((itemId) => {
+            const def = INVENTORY[itemId];
+            if (!def) return null;
+            const value = room.inventory[itemId];
+            return (
+              <div key={itemId} className="switch-row">
+                <span className="grow">{def.label}</span>
+                <Stepper
+                  label={def.label}
+                  value={typeof value === 'number' ? value : 0}
+                  onChange={(n) => onChange(itemId, n)}
+                />
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export function RoomScreen({ id, roomId }: { id: string; roomId: string }) {
   const { state, update } = useProtocol();
@@ -144,7 +236,7 @@ export function RoomScreen({ id, roomId }: { id: string; roomId: string }) {
               <Icon name="x" size={22} /> Mängel
             </button>
           </div>
-          {openIds.length > 0 ? <p className="hint">Bitte jeden Punkt einmal antippen.</p> : null}
+          {openIds.length > 0 ? <p className="hint">Bitte tippen Sie jeden Punkt einmal an.</p> : null}
         </section>
 
         <section aria-labelledby="h-quick">
@@ -204,7 +296,7 @@ export function RoomScreen({ id, roomId }: { id: string; roomId: string }) {
               );
             })}
           </div>
-          <p className="hint">Jeden Punkt einzeln antippen: OK ✓ → Mangel ⚠ → zurücksetzen</p>
+          <p className="hint">Tippen Sie jeden Punkt einzeln an: In Ordnung, dann Mangel, dann zurück.</p>
         </section>
 
         {defectIds.map((checkId) => {
@@ -215,11 +307,20 @@ export function RoomScreen({ id, roomId }: { id: string; roomId: string }) {
           return (
             <div key={checkId} className="card card--defect card--summary">
               <button type="button" className="card__open" onClick={() => openSheet(checkId, 'description')}>
-                <b>Mangel: {label}</b>
-                <span className="one-line">{d.description.trim() || 'Noch ohne Beschreibung'}</span>
-                <span className={photosShort ? 'badge badge--defect' : 'badge badge--ok'}>
-                  {d.photoIds.length}/{RULES.minPhotosPerDefect} Fotos
+                <span className="card__copy">
+                  <b>Mangel: {label}</b>
+                  <span className="one-line">{d.description.trim() || 'Noch ohne Beschreibung'}</span>
+                  <span className={photosShort ? 'badge badge--defect' : 'badge badge--ok'}>
+                    {d.photoIds.length}/{RULES.minPhotosPerDefect} Fotos
+                  </span>
                 </span>
+                {d.photoIds.length ? (
+                  <span className="card-thumbs">
+                    {d.photoIds.slice(0, 2).map((photoId) => (
+                      <MiniPhoto key={photoId} id={photoId} />
+                    ))}
+                  </span>
+                ) : null}
               </button>
               <button
                 type="button"
@@ -238,7 +339,7 @@ export function RoomScreen({ id, roomId }: { id: string; roomId: string }) {
             Schnellauswahl
           </h2>
           <p className="hint" style={{ marginBottom: 8 }}>
-            Begriff antippen, um ihn in die Notizen zu übernehmen. Der Text bleibt frei änderbar.
+            Tippen Sie einen Begriff an. Er kommt in die Notizen. Den Text können Sie ändern.
           </p>
           <div className="chips" style={{ marginBottom: 12 }}>
             {conditionPhrases().map((ph) => (
@@ -269,47 +370,16 @@ export function RoomScreen({ id, roomId }: { id: string; roomId: string }) {
         {template.inventory?.length ? (
           <section aria-labelledby="h-inv">
             <h2 id="h-inv" className="section-title">
-              Ausstattung vorhanden
+              Ausstattung
             </h2>
-            <div className="chips">
-              {template.inventory.map((itemId) => {
-                const def = INVENTORY[itemId];
-                if (!def) return null;
-                const v = room.inventory[itemId];
-                if (def.type === 'count') {
-                  return (
-                    <div
-                      key={itemId}
-                      className="row"
-                      style={{ width: '100%', justifyContent: 'space-between' }}
-                    >
-                      <span>{def.label}</span>
-                      <Stepper
-                        label={def.label}
-                        value={typeof v === 'number' ? v : 0}
-                        onChange={(n) =>
-                          setRoom((r) => ({ ...r, inventory: { ...r.inventory, [itemId]: n } }))
-                        }
-                      />
-                    </div>
-                  );
-                }
-                return (
-                  <button
-                    key={itemId}
-                    type="button"
-                    className="chip chip--option"
-                    aria-pressed={v === true}
-                    disabled={locked}
-                    onClick={() =>
-                      setRoom((r) => ({ ...r, inventory: { ...r.inventory, [itemId]: !(v === true) } }))
-                    }
-                  >
-                    {def.label}
-                  </button>
-                );
-              })}
-            </div>
+            <InventoryGroups
+              ids={template.inventory}
+              room={room}
+              locked={locked}
+              onChange={(itemId, value) =>
+                setRoom((r) => ({ ...r, inventory: { ...r.inventory, [itemId]: value } }))
+              }
+            />
           </section>
         ) : null}
       </main>

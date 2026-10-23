@@ -115,6 +115,45 @@ export function BasisScreen({ id }: { id: string }) {
             />
           </Field>
           {p.inspector === 'Demo' ? <p className="hint">Demo-Protokoll</p> : null}
+          <Field label="Übergabe am">
+            <input
+              className="input"
+              type="date"
+              required
+              value={p.handoverOn}
+              onChange={(e) => {
+                const handoverOn = e.currentTarget.value;
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(handoverOn)) return;
+                update((x) => ({ ...x, handoverOn }));
+              }}
+            />
+          </Field>
+          {p.type === 'uebergabe' ? (
+            <Field label="Einzug am">
+              <input
+                className="input"
+                type="date"
+                value={p.moveInOn}
+                onChange={(e) => {
+                  const moveInOn = e.currentTarget.value;
+                  update((x) => ({ ...x, moveInOn }));
+                }}
+              />
+            </Field>
+          ) : null}
+          {p.type === 'abnahme' ? (
+            <Field label="Auszug zum">
+              <input
+                className="input"
+                type="date"
+                value={p.moveOutOn}
+                onChange={(e) => {
+                  const moveOutOn = e.currentTarget.value;
+                  update((x) => ({ ...x, moveOutOn }));
+                }}
+              />
+            </Field>
+          ) : null}
         </fieldset>
 
         <h2 className="section-title">Ausstattung</h2>

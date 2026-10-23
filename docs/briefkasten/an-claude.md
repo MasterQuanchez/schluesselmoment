@@ -2,6 +2,15 @@
 
 <!-- Neue Einträge oben. Format: ## TT.MM. · SM-xx · Bahn X · Kurztitel -->
 
+## 23.10. · SM-18 · Bahn A + B · Unterschrift und UX-Feinschliff
+
+Prompt-ID: SM-18. Nicht angefasst: PDF (`frontend/src/pdf/*`, SM-20), Mangel-Schalter und Chip/ⓘ (SM-19), Startseite (SM-09), Schriftgrößen allgemein (SM-21).
+ACs: Unterschrift ohne Überlauf, Sheet-Fuß, eine Status-Pill, Ausstattung in zwei Gruppen, Datumfelder.
+Entscheidung: D36. Felder `handoverOn` (Übergabe am, Pflicht), `moveInOn` (Einzug am, nur Übergabe), `moveOutOn` (Auszug zum, nur Abnahme). Schemaversion 2. Bestehende Protokolle: `handoverOn` = die ersten 10 Zeichen von `createdAt`.
+Ergebnis: GRÜN. typecheck ✓ gegen das committete PDF (die Arbeitskopie von `generate.ts` gehört SM-20 und typecheckt dort separat nicht). test ✓ (39). Klickpfad Pixel 7, iPhone 15 und 360×740, jeweils „Fehler: keine“, `scrollWidth === innerWidth`. Screenshots `frontend/test-results/sm18/` (gitignored, der neue Stand).
+Geänderte Texte: „Zähler/Schlüssel“ → „Zähler“. „Bitte jeden Punkt einmal antippen.“ → „Bitte tippen Sie jeden Punkt einmal an.“ „Jeden Punkt einzeln antippen …“ → „Tippen Sie jeden Punkt einzeln an: In Ordnung, dann Mangel, dann zurück.“ Notiz-Hinweis → „Tippen Sie einen Begriff an. Er kommt in die Notizen. Den Text können Sie ändern.“ „Ausstattung vorhanden“ → „Ausstattung“ mit „Vorhanden“ (Ja/Nein) und „Anzahl“. Zähler-Hinweis → „Lesen Sie den Stand gemeinsam mit dem Mieter ab. Ein Foto dient als Beleg.“ Einheit nur noch im Feld Stand. „Jetzt Inhalt festschreiben und unterschreiben lassen.“ → „Schreiben Sie den Inhalt fest und lassen Sie unterschreiben.“ „Bitte das PDF selbst ablegen …“ → „Bitte legen Sie das PDF selbst ab …“. Neu: Bestätigungssatz der Unterschrift, „Hier mit dem Finger unterschreiben“, „Unterschreiben“, „✓ unterschrieben“, „Noch 1 Unterschrift fehlt“ / „Noch N Unterschriften fehlen“, „Übergabe am“, „Einzug am“, „Auszug zum“. Raumliste nur „N/M geprüft“ und eine Pill.
+Offene Punkte: SM-20 gibt die drei Datumsfelder im PDF aus. Keine Vorher-Screenshots, der Lauf zeigt den neuen Stand. Kein echtes Gerät, nur Geräteprofile.
+
 ## 23.10. · SM-15 · Zusatz · 1 Foto, noindex, Zielgeräte
 
 Prompt-ID: SM-15-Zusatz (Entscheidungen 23.10.).

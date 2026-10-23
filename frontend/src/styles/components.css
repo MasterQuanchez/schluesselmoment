@@ -23,6 +23,7 @@
 }
 .grow {
   flex: 1;
+  min-width: 0;
 }
 .muted {
   color: var(--c-text-muted);
@@ -31,8 +32,8 @@
   font-size: var(--fs-sm);
 }
 .hint {
-  font-size: var(--fs-xs);
-  font-style: italic;
+  font-size: var(--fs-sm);
+  font-style: normal;
   color: var(--c-text-muted);
   margin: var(--sp-1) 0 0;
 }
@@ -84,8 +85,12 @@
   padding: 0 var(--sp-4) var(--sp-2);
 }
 .steps a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
   text-align: center;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: var(--c-text-muted);
   text-decoration: none;
   padding-top: 6px;
@@ -147,10 +152,17 @@
 .btn--primary:hover {
   background: var(--c-primary-hover);
 }
-.btn--ghost {
+.btn--ghost,
+.btn--text {
   background: transparent;
   border-color: transparent;
   color: var(--c-primary);
+}
+.btn--line {
+  background: var(--c-surface);
+  border-color: var(--c-primary);
+  color: var(--c-primary);
+  flex: none;
 }
 .btn--danger {
   color: var(--c-danger);
@@ -314,9 +326,9 @@
 }
 .card__open {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--sp-3);
   width: 100%;
   text-align: left;
   font: inherit;
@@ -325,6 +337,27 @@
   border: 0;
   padding: 0;
   cursor: pointer;
+}
+.card__copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+.card-thumbs {
+  display: flex;
+  gap: var(--sp-2);
+  flex: none;
+}
+.card-thumbs img,
+.card-thumbs__ph {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  object-fit: cover;
+  background: var(--c-surface-2);
 }
 .btn--file {
   position: relative;
@@ -370,15 +403,55 @@
   position: relative;
   z-index: 1;
   width: min(100%, 480px);
-  max-height: 88vh;
-  overflow: auto;
+  max-height: min(88vh, 100dvh);
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 20px 16px calc(16px + env(safe-area-inset-bottom));
   background: var(--c-surface);
   border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   box-shadow: var(--shadow-elevation-30);
+}
+.sheet__bar {
+  position: relative;
+  flex: none;
+  min-height: 44px;
+}
+.sheet__grip {
+  display: block;
+  width: 40px;
+  height: 4px;
+  margin: 10px auto 0;
+  border-radius: var(--r-pill);
+  background: var(--theme-current-color-separator);
+}
+.sheet__close {
+  position: absolute;
+  top: 0;
+  right: 4px;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--c-primary);
+  display: grid;
+  place-items: center;
+}
+.sheet__body {
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 16px 12px;
+}
+.sheet__foot {
+  flex: none;
+  position: sticky;
+  bottom: 0;
+  background: var(--c-surface);
+  border-top: 1px solid var(--theme-current-color-separator);
+  padding: 8px 16px calc(12px + env(safe-area-inset-bottom));
 }
 .list {
   list-style: none;
@@ -403,6 +476,14 @@
 }
 .list-item__title {
   font-weight: var(--fw-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.subhead {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  margin: 0;
 }
 .badge {
   font-size: var(--fs-xs);
@@ -470,6 +551,25 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--sp-3);
+}
+.grid-2 > * {
+  min-width: 0;
+}
+.input-affix {
+  position: relative;
+  display: block;
+}
+.input-affix .input {
+  padding-right: 4.5rem;
+}
+.input-affix__suffix {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--c-text-muted);
+  font-size: var(--fs-sm);
+  pointer-events: none;
 }
 .stepper {
   display: inline-flex;
@@ -546,13 +646,64 @@
 }
 
 /* Unterschrift */
+.sigpad-wrap {
+  position: relative;
+}
 .sigpad {
   width: 100%;
-  height: 200px;
+  height: 240px;
+  display: block;
   border: 1.5px dashed var(--c-border);
   border-radius: var(--r-md);
-  background: #fff; /* Unterschrift immer auf Weiß (PDF) – bewusste Ausnahme */
+  background: var(--c-surface);
   touch-action: none;
+}
+.sigpad__line {
+  position: absolute;
+  left: 36px;
+  right: 16px;
+  bottom: 64px;
+  border-bottom: 1.5px dashed var(--c-border);
+  pointer-events: none;
+}
+.sigpad__cross {
+  position: absolute;
+  left: 12px;
+  bottom: 52px;
+  color: var(--c-text-muted);
+  font-size: var(--fs-lg);
+  line-height: 1;
+  pointer-events: none;
+}
+.sigpad__hint {
+  position: absolute;
+  left: 40px;
+  right: 12px;
+  bottom: 72px;
+  margin: 0;
+  text-align: center;
+  color: var(--c-text-muted);
+  font-size: var(--fs-sm);
+  pointer-events: none;
+}
+.sigpad__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+.sig-preview {
+  flex: none;
+  width: 72px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  overflow: hidden;
+}
+.sig-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 /* Untere Aktionsleiste + FAB */

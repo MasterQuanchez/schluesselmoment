@@ -16,15 +16,19 @@ import {
   cycleCheck,
   defectPhrases,
   deletionDate,
+  inventoryGroups,
   isExpired,
   issueLabel,
+  localIsoDate,
   mailRecipients,
   markNoDefects,
+  missingSignatureLabel,
   photoCountLabel,
   photoStatusLabel,
   protocolIssues,
   requiredSigners,
   roomIssues,
+  roomStatusLabel,
   sealProtocol,
   setCheck,
   setDetail,
@@ -269,6 +273,46 @@ describe('Unterschrift & Versiegelung', () => {
 
   it('canonicalJson sortiert Schlüssel', () => {
     expect(canonicalJson({ b: 1, a: [2, { d: 1, c: 2 }] })).toBe('{"a":[2,{"c":2,"d":1}],"b":1}');
+  });
+});
+
+describe('Daten und Status', () => {
+  it('setzt das Übergabe-Datum auf den lokalen Kalendertag', () => {
+    const now = new Date(2026, 9, 23, 15, 0, 0);
+    const p = createProtocol('abnahme', now);
+    expect(p.handoverOn).toBe('2026-10-23');
+    expect(p.handoverOn).toBe(localIsoDate(now));
+    expect(p.moveInOn).toBe('');
+    expect(p.moveOutOn).toBe('');
+    expect(p.schemaVersion).toBe(2);
+  });
+
+  it('nennt die Raum-Pill nur bei erledigten Räumen', () => {
+    const open = buildRooms(Features.parse({}))[0];
+    expect(open).toBeTruthy();
+    if (!open) return;
+    expect(roomStatusLabel(open)).toBeNull();
+    const done = { ...open, completedAt: '2026-10-23T10:00:00.000Z' };
+    expect(roomStatusLabel(done)).toEqual({ label: '✓ erledigt', tone: 'ok' });
+    const one = { ...done, checks: { ...done.checks, walls: 'defect' as const } };
+    expect(roomStatusLabel(one)).toEqual({ label: '✓ 1 Mangel', tone: 'warning' });
+    const two = { ...one, checks: { ...one.checks, ceiling: 'defect' as const } };
+    expect(roomStatusLabel(two)).toEqual({ label: '✓ 2 Mängel', tone: 'warning' });
+  });
+
+  it('ordnet Ausstattung in Vorhanden und Anzahl', () => {
+    const kitchen = ROOM_TEMPLATES.kitchenFitted?.inventory ?? [];
+    const groups = inventoryGroups(kitchen);
+    expect(groups.present.length).toBeGreaterThan(0);
+    expect(groups.counts.length).toBeGreaterThan(0);
+    expect(groups.present.includes('oven')).toBe(true);
+    expect(groups.counts.includes('bakingTray')).toBe(true);
+    expect(inventoryGroups(['fehlt'])).toEqual({ present: [], counts: [] });
+  });
+
+  it('nennt die fehlenden Unterschriften', () => {
+    expect(missingSignatureLabel(1)).toBe('Noch 1 Unterschrift fehlt');
+    expect(missingSignatureLabel(3)).toBe('Noch 3 Unterschriften fehlen');
   });
 });
 

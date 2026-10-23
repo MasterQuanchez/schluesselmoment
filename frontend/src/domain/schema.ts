@@ -5,7 +5,7 @@
  */
 import { z } from 'zod';
 
-export const SCHEMA_VERSION = 1 as const;
+export const SCHEMA_VERSION = 2 as const;
 
 export const ProtocolType = z.enum(['uebergabe', 'abnahme', 'bestandsaufnahme']);
 export type ProtocolType = z.infer<typeof ProtocolType>;
@@ -121,6 +121,18 @@ export const Protocol = z.object({
   status: z.enum(['draft', 'signing', 'signed']).default('draft'),
   createdAt: z.string(),
   updatedAt: z.string(),
+  /** Kalendertag der Wohnungsübergabe, `YYYY-MM-DD`. Pflicht. */
+  handoverOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  /** Nur bei Typ Übergabe. Leer, wenn nicht gesetzt. */
+  moveInOn: z
+    .string()
+    .regex(/^(\d{4}-\d{2}-\d{2})?$/)
+    .default(''),
+  /** Nur bei Typ Abnahme. Leer, wenn nicht gesetzt. */
+  moveOutOn: z
+    .string()
+    .regex(/^(\d{4}-\d{2}-\d{2})?$/)
+    .default(''),
   inspector: z.string().max(200).default(''),
   property: Property,
   features: Features,

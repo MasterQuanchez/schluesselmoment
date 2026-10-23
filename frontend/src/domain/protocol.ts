@@ -6,6 +6,7 @@ import {
   CHECKS,
   CONDITION_PHRASES,
   DEFECT_PHRASES,
+  INVENTORY,
   ROOM_TEMPLATES,
   type RoomTemplate,
   RULES,
@@ -25,6 +26,13 @@ import {
 } from './schema';
 
 export const newId = (): string => crypto.randomUUID();
+
+/** Kalendertag in der lokalen Zeitzone, `YYYY-MM-DD`. */
+export function localIsoDate(now: Date): string {
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${now.getFullYear()}-${month}-${day}`;
+}
 
 export const emptyDefect = (): Defect => ({
   description: '',
@@ -52,6 +60,9 @@ export function createProtocol(type: ProtocolType, now = new Date()): Protocol {
     status: 'draft',
     createdAt: ts,
     updatedAt: ts,
+    handoverOn: localIsoDate(now),
+    moveInOn: '',
+    moveOutOn: '',
     inspector: '',
     property: { street: '', postalCode: '', city: '', unit: '', objectNumber: '', note: '' },
     features,
@@ -286,6 +297,28 @@ export function roomProgress(room: Room): { done: number; total: number } {
   return { done: states.filter((s) => s !== 'open').length, total: states.length };
 }
 
+/** Eine Status-Pill für die Raumliste. Offen hat keine. */
+export function roomStatusLabel(room: Room): { label: string; tone: 'ok' | 'warning' } | null {
+  if (!room.completedAt) return null;
+  const defects = Object.values(room.checks).filter((state) => state === 'defect').length;
+  if (defects === 0) return { label: '✓ erledigt', tone: 'ok' };
+  if (defects === 1) return { label: '✓ 1 Mangel', tone: 'warning' };
+  return { label: `✓ ${defects} Mängel`, tone: 'warning' };
+}
+
+/** Ausstattung: zuerst Ja/Nein, dann Zähler. Unbekannte IDs fallen weg. */
+export function inventoryGroups(ids: readonly string[]): { present: string[]; counts: string[] } {
+  const present: string[] = [];
+  const counts: string[] = [];
+  for (const id of ids) {
+    const item = INVENTORY[id];
+    if (!item) continue;
+    if (item.type === 'count') counts.push(id);
+    else present.push(id);
+  }
+  return { present, counts };
+}
+
 export function protocolIssues(p: Protocol): Issue[] {
   const issues: Issue[] = [];
   if (!p.property.street.trim()) issues.push({ message: 'Adresse fehlt' });
@@ -359,6 +392,16 @@ export function signatureFor(p: Protocol, signer: Pick<Signer, 'role' | 'partyIn
 
 export function allSigned(p: Protocol): boolean {
   return requiredSigners(p).every((s) => signatureFor(p, s));
+}
+
+export function missingSignatureCount(p: Protocol): number {
+  return requiredSigners(p).filter((s) => !signatureFor(p, s)).length;
+}
+
+/** Text im gesperrten Versiegeln-Knopf. */
+export function missingSignatureLabel(missing: number): string {
+  if (missing === 1) return 'Noch 1 Unterschrift fehlt';
+  return `Noch ${missing} Unterschriften fehlen`;
 }
 
 export type ProtocolResult = { ok: true; protocol: Protocol } | { ok: false; reason: string };

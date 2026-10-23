@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { APP_CONFIG } from '@/config';
 import {
   addSignature,
-  allSigned,
   backToDraft,
   mailRecipients,
+  missingSignatureCount,
+  missingSignatureLabel,
   protocolIssues,
   referencedPhotoIds,
   requiredSigners,
@@ -202,7 +203,7 @@ export function FinishScreen({ id }: { id: string }) {
               </div>
             ) : (
               <div className="notice notice--ok celebrate">
-                ✓ Alles erfasst. Jetzt Inhalt festschreiben und unterschreiben lassen.
+                ✓ Alles erfasst. Schreiben Sie den Inhalt fest und lassen Sie unterschreiben.
               </div>
             )}
             <label className="field">
@@ -253,27 +254,35 @@ export function FinishScreen({ id }: { id: string }) {
               <ul className="list">
                 {signers.map((s) => {
                   const sig = signatureFor(p, s);
+                  const role = s.role === 'landlord' ? 'Vermieter/Verwalter' : 'Mieter';
                   return (
-                    <li key={`${s.role}-${s.partyIndex}`}>
-                      <button
-                        type="button"
-                        className="list-item"
-                        style={{ width: '100%', textAlign: 'left' }}
-                        onClick={() => setSigning(s)}
-                      >
-                        <div className="grow">
-                          <div className="list-item__title">{s.name}</div>
-                          <div className="small muted">
-                            {s.role === 'landlord' ? 'Vermieter/Verwalter' : 'Mieter'}
-                          </div>
-                        </div>
-                        {sig ? (
-                          <img src={sig.image} alt={`Unterschrift ${s.name}`} style={{ height: 36 }} />
-                        ) : null}
-                        <span className={sig ? 'badge badge--ok' : 'badge'}>
-                          {sig ? '✓ unterschrieben' : 'Unterschreiben'}
-                        </span>
-                      </button>
+                    <li key={`${s.role}-${s.partyIndex}`} className="list-item">
+                      <div className="grow">
+                        <div className="list-item__title">{s.name}</div>
+                        <div className="small muted">{role}</div>
+                      </div>
+                      {sig ? (
+                        <>
+                          <button
+                            type="button"
+                            className="sig-preview"
+                            aria-label={`Unterschrift von ${s.name} ändern`}
+                            onClick={() => setSigning(s)}
+                          >
+                            <img src={sig.image} alt="" />
+                          </button>
+                          <span className="badge badge--ok">✓ unterschrieben</span>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn btn--line"
+                          aria-label={`Unterschreiben: ${s.name}`}
+                          onClick={() => setSigning(s)}
+                        >
+                          Unterschreiben
+                        </button>
+                      )}
                     </li>
                   );
                 })}
@@ -282,10 +291,16 @@ export function FinishScreen({ id }: { id: string }) {
             <button
               type="button"
               className="btn btn--primary btn--block"
-              disabled={!allSigned(p) || busy}
+              disabled={missingSignatureCount(p) > 0 || busy}
               onClick={() => void seal()}
             >
-              <Icon name="check" /> Abschließen & versiegeln
+              {missingSignatureCount(p) > 0 ? (
+                missingSignatureLabel(missingSignatureCount(p))
+              ) : (
+                <>
+                  <Icon name="check" /> Abschließen & versiegeln
+                </>
+              )}
             </button>
             <button
               type="button"
@@ -318,7 +333,7 @@ export function FinishScreen({ id }: { id: string }) {
               )}
               <span className="muted">
                 Nach dem Versand wird das Protokoll in {APP_CONFIG.retentionDays} Tagen von diesem Gerät
-                gelöscht. Bitte das PDF selbst ablegen (Kopie an sich selbst).
+                gelöscht. Bitte legen Sie das PDF selbst ab (Kopie an sich selbst).
               </span>
             </div>
             {readyPdf ? (

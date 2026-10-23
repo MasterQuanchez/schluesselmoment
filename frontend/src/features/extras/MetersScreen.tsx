@@ -25,14 +25,12 @@ export function MetersScreen({ id }: { id: string }) {
       </TopBar>
       <main className="page stack">
         <h1 className="page-title">Zählerstände</h1>
-        <p className="page-sub">Gemeinsam mit dem Mieter ablesen. Foto vom Zähler als Beleg.</p>
+        <p className="page-sub">Lesen Sie den Stand gemeinsam mit dem Mieter ab. Ein Foto dient als Beleg.</p>
         {p.meters.map((m) => (
           <fieldset key={m.id} className="card stack" disabled={locked}>
             <div className="row">
               <Icon name="gauge" />
-              <b className="grow">
-                {METER_LABEL[m.kind].label} ({METER_LABEL[m.kind].unit})
-              </b>
+              <b className="grow">{METER_LABEL[m.kind].label}</b>
               <button
                 type="button"
                 className="btn btn--ghost btn--danger"
@@ -52,13 +50,20 @@ export function MetersScreen({ id }: { id: string }) {
                 />
               </Field>
               <Field label="Stand">
-                <input
-                  className="input"
-                  inputMode="decimal"
-                  autoComplete="off"
-                  value={m.reading}
-                  onChange={(e) => setMeter(m.id, { reading: e.currentTarget.value.replace(/[^\d.,]/g, '') })}
-                />
+                <span className="input-affix">
+                  <input
+                    className="input"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    value={m.reading}
+                    onChange={(e) =>
+                      setMeter(m.id, { reading: e.currentTarget.value.replace(/[^\d.,]/g, '') })
+                    }
+                  />
+                  <span className="input-affix__suffix" aria-hidden="true">
+                    {METER_LABEL[m.kind].unit}
+                  </span>
+                </span>
               </Field>
             </div>
             <Field label="Ort">

@@ -11,7 +11,16 @@ const tag = deviceName.toLowerCase().replace(/\s+/g, '');
 fs.mkdirSync(SP, { recursive: true });
 const shot = (p, n) => p.screenshot({ path: `${SP}/${tag}-${n}.png`, fullPage: false });
 const browser = await chromium.launch();
-const device = devices[deviceName];
+const device =
+  deviceName === '360'
+    ? {
+        viewport: { width: 360, height: 740 },
+        deviceScaleFactor: 2,
+        isMobile: true,
+        hasTouch: true,
+        userAgent: devices['Pixel 7'].userAgent,
+      }
+    : devices[deviceName];
 if (!device) throw new Error(`Unbekanntes Gerät: ${deviceName}`);
 const ctx = await browser.newContext({
   ...device,
@@ -58,6 +67,7 @@ await shot(page, '02-basis');
 await page.getByRole('link', { name: 'Weiter zu den Räumen' }).click();
 await page.getByRole('heading', { name: 'Räume' }).waitFor();
 await shot(page, '03-raeume');
+await noOverflow('Räume');
 const roomCount = await page.locator('.list li').count();
 console.log('Räume:', roomCount);
 // Flur: keine Mängel, zwei Details über das Sheet, Rest einzeln
@@ -70,7 +80,7 @@ async function tapAllOpen() {
     await o.first().click();
   }
 }
-await page.getByText('Bitte jeden Punkt einmal antippen.').waitFor();
+await page.getByText('Bitte tippen Sie jeden Punkt einmal an.').waitFor();
 await page.getByRole('button', { name: /noch nicht geprüft/ }).waitFor();
 await shot(page, 'sm11-offen');
 await page.getByRole('button', { name: 'Details zu Decke' }).click();
@@ -144,7 +154,7 @@ for (let i = 0; i < 20; i++) {
   await page.getByRole('button', { name: 'Keine Mängel' }).click();
   await tapAllOpen();
   if (title === 'Bad') {
-    await page.getByRole('button', { name: 'Spiegel', exact: true }).click();
+    await page.getByRole('button', { name: 'Spiegel: Ja', exact: true }).click();
     await page.getByRole('button', { name: 'Handtuchhaken mehr' }).click();
   }
   if (title === 'Abschluss-Prüfungen') await shot(page, '09-abschlusspruefungen');
@@ -171,14 +181,26 @@ const [d0] = await Promise.all([
 ]);
 await d0.saveAs(`${SP}/entwurf.pdf`);
 await page.getByRole('button', { name: /Inhalt festschreiben/ }).click();
+async function noOverflow(where) {
+  const ok = await page.evaluate(() => document.documentElement.scrollWidth === window.innerWidth);
+  if (!ok) {
+    const detail = await page.evaluate(
+      () => `${document.documentElement.scrollWidth}≠${window.innerWidth}`,
+    );
+    errors.push(`Überlauf ${where}: ${detail}`);
+  }
+}
 async function sign(name) {
-  await page.getByRole('button', { name: new RegExp(name) }).click();
+  await page.getByRole('button', { name: new RegExp(`Unterschreiben: ${name}`) }).click();
   const c = page.locator('canvas.sigpad');
+  await c.waitFor();
+  await noOverflow(`Unterschrift ${name}`);
   const b = await c.boundingBox();
   await page.mouse.move(b.x + 30, b.y + 120);
   await page.mouse.down();
   for (let i = 0; i <= 40; i++) await page.mouse.move(b.x + 30 + i * 7, b.y + 110 - Math.sin(i / 3) * 40);
   await page.mouse.up();
+  await page.getByText('Hier mit dem Finger unterschreiben').waitFor({ state: 'hidden' });
   await shot(page, `13-unterschrift-${name.split(' ')[0]}`);
   await page.getByRole('button', { name: 'Übernehmen' }).click();
 }

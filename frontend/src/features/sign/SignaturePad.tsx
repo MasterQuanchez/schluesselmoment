@@ -84,32 +84,42 @@ export function SignaturePad({
   };
 
   return (
-    <div className="card stack celebrate">
+    <div className="card stack">
       <b>Unterschrift: {name}</b>
-      <canvas
-        ref={ref}
-        className="sigpad"
-        aria-label={`Unterschriftsfeld für ${name}`}
-        onPointerDown={down}
-        onPointerMove={move}
-        onPointerUp={up}
-        onPointerCancel={up}
-      />
-      <div className="row">
-        <button type="button" className="btn btn--ghost" onClick={setup}>
+      <p className="hint">
+        Mit Ihrer Unterschrift bestätigen Sie dieses Protokoll einschließlich Zählerständen und
+        Schlüsselübergabe.
+      </p>
+      <div className="sigpad-wrap">
+        <canvas
+          ref={ref}
+          className="sigpad"
+          aria-label={`Unterschriftsfeld für ${name}`}
+          onPointerDown={down}
+          onPointerMove={move}
+          onPointerUp={up}
+          onPointerCancel={up}
+        />
+        <span className="sigpad__cross" aria-hidden="true">
+          ×
+        </span>
+        <span className="sigpad__line" aria-hidden="true" />
+        {empty ? <p className="sigpad__hint">Hier mit dem Finger unterschreiben</p> : null}
+      </div>
+      <button
+        type="button"
+        className="btn btn--primary btn--block"
+        disabled={empty}
+        onClick={() => ref.current && onSave(ref.current.toDataURL('image/png'))}
+      >
+        Übernehmen
+      </button>
+      <div className="sigpad__actions">
+        <button type="button" className="btn btn--text" onClick={setup}>
           Löschen
         </button>
-        <span className="grow" />
-        <button type="button" className="btn" onClick={onCancel}>
+        <button type="button" className="btn btn--text" onClick={onCancel}>
           Abbrechen
-        </button>
-        <button
-          type="button"
-          className="btn btn--primary"
-          disabled={empty}
-          onClick={() => ref.current && onSave(ref.current.toDataURL('image/png'))}
-        >
-          Übernehmen
         </button>
       </div>
     </div>
