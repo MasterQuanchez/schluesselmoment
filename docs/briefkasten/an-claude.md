@@ -2,6 +2,15 @@
 
 <!-- Neue Einträge oben. Format: ## TT.MM. · SM-xx · Bahn X · Kurztitel -->
 
+## 24.10. · SM-28 · Bahn C · Nachtrag blockiert
+
+Prompt-ID: SM-28, Punkte 4–6. Kein Code. Nichts geraten, SM-26 nicht angefangen.
+Offen für Philipp:
+4. Kindersicherungen als oranger Hinweis „Steckdosen/Schalter … Kindersicherungen vorhanden – zu entfernen“. Steckdosen haben dafür keinen Wert im Katalog.
+5. Mehrere Außenbereiche, je Raum ein eigenes Icon. Übernommene Angaben aus einem Duplikat ohne Sonderdarstellung. Das Schema kennt nur einen Außenbereich, die Icons nur „Balkon“.
+6. Vergleich nur bei Abnahme mit baseline, Abschnitt nach den Mängeln. Am Protokoll gibt es kein baseline.
+Alle drei warten auf SM-24 und SM-29 aus Chat 13.
+
 ## 24.10. · SM-28 · Bahn C · Seite 1, Protokolldaten im PDF
 
 Prompt-ID: SM-28. D59. Layout „Klar“ (D58) bleibt. Nur `frontend/src/pdf/*` und `tests/pdf.test.ts`.
