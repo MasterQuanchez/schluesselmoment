@@ -16,6 +16,8 @@ export type PdfLayoutMark = {
   page: number;
   y: number;
   height: number;
+  x?: number;
+  width?: number;
 };
 
 const A4: [number, number] = [595.28, 841.89];
@@ -74,7 +76,7 @@ const FONT_URL = {
 
 type Ink = { height: number; draw: () => void | Promise<void> };
 type Piece = Ink & { id: string; chunks?: Ink[] };
-type Slot = { page: PDFPage; right: number; y: number; block: string };
+type Slot = { page: PDFPage; x: number; y: number; block: string; align: 'left' | 'right' };
 type Face = { jakarta: PDFFont; regular: PDFFont; medium: PDFFont; semi: PDFFont };
 type Paint = { color?: ReturnType<typeof rgb>; borderColor?: ReturnType<typeof rgb>; borderWidth?: number };
 
@@ -145,7 +147,7 @@ async function shrinkJpeg(bytes: Uint8Array): Promise<Uint8Array> {
   try {
     const view = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
     const bmp = await createImageBitmap(new Blob([view], { type: 'image/jpeg' }));
-    const scale = Math.min(1, 1000 / Math.max(bmp.width, bmp.height));
+    const scale = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
     if (scale >= 1) {
       bmp.close();
       return bytes;
@@ -169,12 +171,10 @@ async function shrinkJpeg(bytes: Uint8Array): Promise<Uint8Array> {
   }
 }
 
-function mapIcon(d: string, ox: number, oy: number, size: number): string {
+function mapIcon(d: string, size: number): string {
   const s = size / 512;
   return d.replace(/([ML])\s*([\d.]+)\s+([\d.]+)/g, (_m, cmd: string, xs: string, ys: string) => {
-    const x = ox + Number(xs) * s;
-    const y = oy + (512 - Number(ys)) * s;
-    return `${cmd} ${x.toFixed(2)} ${y.toFixed(2)}`;
+    return `${cmd} ${(Number(xs) * s).toFixed(2)} ${(Number(ys) * s).toFixed(2)}`;
   });
 }
 
@@ -215,7 +215,8 @@ export async function generatePdf(
         readAsset(FONT_URL.medium),
         readAsset(FONT_URL.semi),
       ]);
-      const embed = (bytes: Uint8Array) => doc.embedFont(bytes, { subset: false, features: { liga: false } });
+      const embed = (bytes: Uint8Array) =>
+        doc.embedFont(bytes, { subset: false, features: { liga: false, kern: false } });
       face = {
         jakarta: await embed(jakarta),
         regular: await embed(regular),
@@ -256,6 +257,26 @@ export async function generatePdf(
   const slots: Slot[] = [];
   const marks: PdfLayoutMark[] = [];
   const number = protocolNumber(p);
+
+  const watch = (target: PDFPage, no: number) => {
+    const raw = target.drawText.bind(target);
+    const host = target as PDFPage & {
+      drawText: (text: string, options?: Parameters<PDFPage['drawText']>[1]) => void;
+    };
+    host.drawText = (text, options) => {
+      raw(text, options);
+      if (!text || options?.rotate) return;
+      const size = options?.size ?? 0;
+      const font = options?.font;
+      if (!font || size <= 0) return;
+      const x = options?.x ?? 0;
+      const w = font.widthOfTextAtSize(text, size);
+      const mark: PdfLayoutMark = { block: 'run', page: no, y: options?.y ?? 0, height: size, x, width: w };
+      marks.push(mark);
+      layout?.push(mark);
+    };
+  };
+  watch(page, pageNo);
 
   const paintMark = (target: PDFPage) => {
     if (!demo) return;
@@ -301,6 +322,15 @@ export async function generatePdf(
     return lines.length ? lines : [''];
   };
 
+  const clip = (text: string, f: PDFFont, size: number, maxW: number) => {
+    const raw = safe(text);
+    if (f.widthOfTextAtSize(raw, size) <= maxW) return raw;
+    const ell = '…';
+    let end = raw.length;
+    while (end > 0 && f.widthOfTextAtSize(`${raw.slice(0, end)}${ell}`, size) > maxW) end -= 1;
+    return `${raw.slice(0, end).trimEnd()}${ell}`;
+  };
+
   const textH = (s: string, size: number, f: PDFFont = face.regular, maxW = TEXT_W, gap = 0) =>
     wrap(s, f, size, maxW).length * (size + 4) + gap;
 
@@ -339,29 +369,33 @@ export async function generatePdf(
   const rounded = (x: number, bottom: number, w: number, h: number, r: number, paint: Paint) => {
     const rr = Math.min(r, w / 2, h / 2);
     const d = [
-      `M ${x + rr} ${bottom}`,
-      `L ${x + w - rr} ${bottom}`,
-      `Q ${x + w} ${bottom} ${x + w} ${bottom + rr}`,
-      `L ${x + w} ${bottom + h - rr}`,
-      `Q ${x + w} ${bottom + h} ${x + w - rr} ${bottom + h}`,
-      `L ${x + rr} ${bottom + h}`,
-      `Q ${x} ${bottom + h} ${x} ${bottom + h - rr}`,
-      `L ${x} ${bottom + rr}`,
-      `Q ${x} ${bottom} ${x + rr} ${bottom} Z`,
+      `M ${rr} 0`,
+      `L ${w - rr} 0`,
+      `Q ${w} 0 ${w} ${rr}`,
+      `L ${w} ${h - rr}`,
+      `Q ${w} ${h} ${w - rr} ${h}`,
+      `L ${rr} ${h}`,
+      `Q 0 ${h} 0 ${h - rr}`,
+      `L 0 ${rr}`,
+      `Q 0 0 ${rr} 0 Z`,
     ].join(' ');
-    page.drawSvgPath(d, paint);
+    page.drawSvgPath(d, { x, y: bottom + h, ...paint });
   };
 
-  const icon = (ox: number, oy: number, size: number) => {
-    page.drawRectangle({ x: ox, y: oy, width: size, height: size, color: COLOR.navy });
-    rounded(ox, oy, size, size, (121 / 512) * size, { color: COLOR.navy });
-    page.drawSvgPath(mapIcon(HOUSE, ox, oy, size), {
+  const icon = (ox: number, bottom: number, size: number) => {
+    rounded(ox, bottom, size, size, (121 / 512) * size, { color: COLOR.navy });
+    const house = Math.max(1.05, (11.2 / 512) * size * 3.2);
+    page.drawSvgPath(mapIcon(HOUSE, size), {
+      x: ox,
+      y: bottom + size,
       borderColor: COLOR.white,
-      borderWidth: (11.2 / 512) * size,
+      borderWidth: house,
     });
-    page.drawSvgPath(mapIcon(TICK, ox, oy, size), {
+    page.drawSvgPath(mapIcon(TICK, size), {
+      x: ox,
+      y: bottom + size,
       borderColor: COLOR.icon,
-      borderWidth: (13 / 512) * size,
+      borderWidth: Math.max(1.15, (13 / 512) * size * 3.2),
     });
   };
 
@@ -377,6 +411,7 @@ export async function generatePdf(
   const openPage = (cont: { label: string; id: string } | null) => {
     page = doc.addPage(A4);
     pageNo += 1;
+    watch(page, pageNo);
     paintMark(page);
     y = A4[1] - TOP;
     if (!cont) return;
@@ -495,17 +530,21 @@ export async function generatePdf(
   };
 
   const circleOk = (x: number, baseline: number) => {
-    page.drawCircle({ x: x + 4, y: baseline + 3, size: 4, borderColor: COLOR.ok, borderWidth: 0.8 });
-    page.drawSvgPath(
-      `M ${x + 2} ${baseline + 3} L ${x + 3.6} ${baseline + 1.4} L ${x + 6.4} ${baseline + 5}`,
-      {
-        borderColor: COLOR.ok,
-        borderWidth: 0.8,
-      },
-    );
+    const r = 4.2;
+    const cx = x + r;
+    const cy = baseline + 3.2;
+    page.drawCircle({ x: cx, y: cy, size: r, borderColor: COLOR.ok, borderWidth: 0.9 });
+    page.drawSvgPath('M 1.3 4.5 L 3.6 6.8 L 7.5 2.0', {
+      x: cx - r,
+      y: cy + r,
+      borderColor: COLOR.ok,
+      borderWidth: 1.05,
+    });
   };
   const triangle = (x: number, baseline: number) => {
-    page.drawSvgPath(`M ${x + 4} ${baseline + 7} L ${x + 8} ${baseline} L ${x} ${baseline} Z`, {
+    page.drawSvgPath('M 4 0.3 L 7.8 7.2 L 0.2 7.2 Z', {
+      x,
+      y: baseline + 7.6,
       color: COLOR.defect,
     });
   };
@@ -555,16 +594,17 @@ export async function generatePdf(
       draw() {
         y -= 8;
         page.drawText(String(roomNo), { x: M, y: y - 12, size: 10, font: face.semi, color: COLOR.muted });
-        page.drawText(safe(room.label), {
+        const label = safe(status);
+        const tw = face.semi.widthOfTextAtSize(label, 8) + (defectCount ? 28 : 24);
+        const chipX = M + width - tw;
+        page.drawText(clip(room.label, face.jakarta, 12.5, chipX - (M + 18) - 8), {
           x: M + 18,
           y: y - 13,
           size: 12.5,
           font: face.jakarta,
           color: COLOR.navy,
         });
-        const label = safe(status);
-        const tw = face.semi.widthOfTextAtSize(label, 8) + (defectCount ? 28 : 24);
-        const x = M + width - tw;
+        const x = chipX;
         const bottom = y - 16;
         if (defectCount) {
           rounded(x, bottom, tw, 16, 8, { color: COLOR.warnBg });
@@ -607,6 +647,69 @@ export async function generatePdf(
   }
   const infoOf = (key: string) => defects.find((item) => item.key === key);
 
+  const pairGap = 8;
+  const pairW = (width - pairGap) / 2;
+  const fitPhoto = (img: PDFImage | null, maxW: number, maxH: number) => {
+    if (!img || img.width <= 0 || img.height <= 0) return { w: Math.min(maxW, 140), h: 36 };
+    const scale = Math.min(maxW / img.width, maxH / img.height);
+    return { w: img.width * scale, h: img.height * scale };
+  };
+  const photoLimits = (img: PDFImage | null, single: boolean) => {
+    if (single) return { maxW: 340, maxH: 283 };
+    const landscape = !img || img.width >= img.height;
+    return { maxW: pairW, maxH: landscape ? (pairW * 3) / 4 : 255 };
+  };
+  const photoRow = (slice: Array<PDFImage | null>, caption: string, nums: number[], single: boolean): Ink => {
+    const boxes = slice.map((img) => {
+      const lim = photoLimits(img, single);
+      return { img, ...fitPhoto(img, lim.maxW, lim.maxH) };
+    });
+    const imgH = Math.max(...boxes.map((box) => box.h), 1);
+    return {
+      height: imgH + 16,
+      draw() {
+        const top = y;
+        for (const [col, box] of boxes.entries()) {
+          const x = M + col * (pairW + pairGap);
+          const bottom = top - box.h;
+          if (box.img) {
+            page.drawImage(box.img, { x, y: bottom, width: box.w, height: box.h });
+            page.drawRectangle({
+              x,
+              y: bottom,
+              width: box.w,
+              height: box.h,
+              borderColor: COLOR.line,
+              borderWidth: 0.5,
+            });
+          } else {
+            rounded(x, bottom, box.w, box.h, 3, {
+              color: COLOR.band,
+              borderColor: COLOR.line,
+              borderWidth: 0.5,
+            });
+            page.drawText('Foto nicht verfügbar', {
+              x: x + 8,
+              y: bottom + 14,
+              size: 8,
+              font: face.regular,
+              color: COLOR.muted,
+            });
+          }
+          const capW = single ? width - col * (pairW + pairGap) : pairW;
+          page.drawText(clip(`Abb. ${nums[col] ?? ''} · ${caption}`, face.regular, 8, capW), {
+            x,
+            y: bottom - 12,
+            size: 8,
+            font: face.regular,
+            color: COLOR.muted,
+          });
+        }
+        y = top - imgH - 16;
+      },
+    };
+  };
+
   async function planDefect(room: Room, checkId: string, rowNo: string): Promise<Piece> {
     const key = `defect:${room.id}:${checkId}`;
     const info = infoOf(key);
@@ -647,10 +750,9 @@ export async function generatePdf(
       },
     });
     const photos: Ink[] = [];
+    const alone = imgs.length === 1;
     for (let i = 0; i < imgs.length; i += 2) {
-      const slice = imgs.slice(i, i + 2);
-      const rowNums = nums.slice(i, i + 2);
-      photos.push(barred({ height: rowH, draw: () => paintFrames(slice, caption, rowNums) }));
+      photos.push(barred(photoRow(imgs.slice(i, i + 2), caption, nums.slice(i, i + 2), alone)));
     }
     const chunks: Ink[] = [row, body, ...photos];
     return {
@@ -702,23 +804,13 @@ export async function generatePdf(
   const rowsFor = (room: Room, roomNo: number) => {
     const entries = Object.entries(room.checks);
     const plain = (id: string, state: string) => state === 'ok' && !detailText(room, id);
-    if (entries.length > 1 && entries.every(([id, state]) => plain(id, state))) {
-      return [
-        {
-          n: `${roomNo}.1`,
-          checkId: '',
-          label: `Alle ${entries.length} Prüfpunkte`,
-          state: 'ok',
-          details: '—',
-        },
-      ];
-    }
+    const single = room.templateId === 'final' || room.label.startsWith('Abschluss');
     const rows: Array<{ n: string; checkId: string; label: string; state: string; details: string }> = [];
     let i = 0;
     let n = 1;
     while (i < entries.length) {
       const [checkId, state] = entries[i] ?? ['', 'open'];
-      if (plain(checkId, state)) {
+      if (!single && plain(checkId, state)) {
         const labels = [CHECKS[checkId]?.label ?? checkId];
         let j = i + 1;
         while (j < entries.length) {
@@ -778,9 +870,9 @@ export async function generatePdf(
       id: 'cover:brand',
       height: 86,
       draw() {
-        icon(M, y - 16, 16);
+        icon(M, y - 18, 18);
         page.drawText('Schlüsselmoment', {
-          x: M + 22,
+          x: M + 24,
           y: y - 13,
           size: 10.5,
           font: face.semi,
@@ -805,7 +897,7 @@ export async function generatePdf(
           color: COLOR.navy,
         });
         y -= 28;
-        page.drawText(safe(address || 'Ohne Adresse'), {
+        page.drawText(clip(address || 'Ohne Adresse', face.regular, 13, width), {
           x: M,
           y: y - 13,
           size: 13,
@@ -814,7 +906,13 @@ export async function generatePdf(
         });
         y -= 18;
         const meta = `Übergabe am ${fmtDay(p.handoverOn)} · ${number}${p.inspector ? ` · Erstellt von ${p.inspector}` : ''}`;
-        page.drawText(safe(meta), { x: M, y: y - 9, size: 9, font: face.regular, color: COLOR.muted });
+        page.drawText(clip(meta, face.regular, 9, width), {
+          x: M,
+          y: y - 9,
+          size: 9,
+          font: face.regular,
+          color: COLOR.muted,
+        });
         y -= 14;
       },
     },
@@ -834,7 +932,12 @@ export async function generatePdf(
           .join(' · '),
       ].filter(Boolean)
     : [];
-  const partyLines = Math.max(landlordLines.length, tenantLines.length, 1);
+  const colW = width / 2 - 14;
+  const fold = (lines: string[]) =>
+    (lines.length ? lines : ['–']).flatMap((line) => wrap(line, face.regular, 10, colW));
+  const leftLines = fold(landlordLines);
+  const rightLines = fold(tenantLines);
+  const partyLines = Math.max(leftLines.length, rightLines.length, 1);
   await place(
     {
       id: 'section:parties',
@@ -857,13 +960,13 @@ export async function generatePdf(
           color: COLOR.muted,
         });
         let left = top - 22;
-        for (const line of landlordLines.length ? landlordLines : ['–']) {
-          page.drawText(safe(line), { x: M, y: left, size: 10, font: face.regular, color: COLOR.text });
+        for (const line of leftLines) {
+          page.drawText(line, { x: M, y: left, size: 10, font: face.regular, color: COLOR.text });
           left -= 13;
         }
         let right = top - 22;
-        for (const line of tenantLines.length ? tenantLines : ['–']) {
-          page.drawText(safe(line), {
+        for (const line of rightLines) {
+          page.drawText(line, {
             x: M + width / 2,
             y: right,
             size: 10,
@@ -887,29 +990,29 @@ export async function generatePdf(
   await place(
     {
       id: 'cover:kpis',
-      height: 56,
+      height: 64,
       draw() {
         const gap = 8;
         const w = (width - gap * 3) / 4;
-        kpis.forEach((kpi, i) => {
+        for (const [i, kpi] of kpis.entries()) {
           const x = M + i * (w + gap);
-          rounded(x, y - 48, w, 48, 6, { color: COLOR.band });
+          rounded(x, y - 56, w, 56, 6, { color: COLOR.band });
           page.drawText(kpi.v, {
-            x: x + 8,
-            y: y - 26,
+            x: x + 10,
+            y: y - 30,
             size: 20,
             font: face.jakarta,
             color: kpi.warn ? COLOR.defect : COLOR.navy,
           });
-          page.drawText(safe(kpi.t), {
-            x: x + 8,
-            y: y - 40,
+          page.drawText(clip(kpi.t, face.regular, 8, w - 20), {
+            x: x + 10,
+            y: y - 46,
             size: 8,
             font: face.regular,
             color: COLOR.muted,
           });
-        });
-        y -= 56;
+        }
+        y -= 64;
       },
     },
     null,
@@ -930,7 +1033,9 @@ export async function generatePdf(
           let x = M;
           cells.forEach((cell, i) => {
             const col = cols[i] ?? 36;
-            const line = wrap(cell, face.regular, 9, col - 4)[0] ?? '';
+            const max = col - 4;
+            const line =
+              i === 3 ? clip(cell, face.regular, 9, max) : (wrap(cell, face.regular, 9, max)[0] ?? '');
             const tw = face.regular.widthOfTextAtSize(line, 9);
             page.drawText(line, {
               x: i === 4 ? x + col - tw - 4 : x,
@@ -941,7 +1046,7 @@ export async function generatePdf(
             });
             x += col;
           });
-          slots.push({ page, right: M + width, y: y - 11, block: item.key });
+          slots.push({ page, x: M + width, y: y - 11, block: item.key, align: 'right' });
           rule(y - 16);
           y -= 18;
         },
@@ -1025,33 +1130,40 @@ export async function generatePdf(
   ]
     .filter(Boolean)
     .join(' · ');
-  const contract = moveIn ? `Einzug am ${fmtDay(moveIn)}` : moveOut ? `Auszug zum ${fmtDay(moveOut)}` : '';
-  const objectBits: Ink[] = [
-    section('03', 'Objekt'),
-    {
-      height: textH(`Ausstattung  ${equip}`, 9.5, face.regular, width),
-      draw: () => paintText(`Ausstattung  ${equip}`, 9.5, face.regular, COLOR.text, M, 0, width),
-    },
-  ];
-  if (contract) {
-    objectBits.push({
-      height: textH(contract, 9.5, face.regular, width),
-      draw: () => paintText(contract, 9.5, face.regular, COLOR.text, M, 0, width),
-    });
-  }
+  const labelW = 92;
+  const valueX = M + labelW;
+  const valueW = width - labelW;
+  const kv = (label: string, value: string): Ink => {
+    const h = Math.max(16, textH(value, 9.5, face.regular, valueW));
+    return {
+      height: h,
+      draw() {
+        const top = y;
+        page.drawText(label, { x: M, y: top - 10, size: 8.5, font: face.medium, color: COLOR.muted });
+        paintText(value, 9.5, face.regular, COLOR.text, valueX, 0, valueW);
+        if (y > top - h) y = top - h;
+      },
+    };
+  };
+  const objectBits: Ink[] = [section('03', 'Objekt'), kv('Ausstattung', equip)];
+  if (moveIn) objectBits.push(kv('Einzug am', fmtDay(moveIn)));
+  if (moveOut) objectBits.push(kv('Auszug zum', fmtDay(moveOut)));
   if (p.type === 'abnahme') {
     objectBits.push({
       height: 16,
       draw() {
-        const lead = 'Vorbehalt  Erklärt – siehe Seite ';
-        page.drawText(lead, { x: M, y: y - 10, size: 9.5, font: face.regular, color: COLOR.text });
+        const top = y;
+        page.drawText('Vorbehalt', { x: M, y: top - 10, size: 8.5, font: face.medium, color: COLOR.muted });
+        const lead = 'Erklärt – siehe Seite ';
+        page.drawText(lead, { x: valueX, y: top - 10, size: 9.5, font: face.regular, color: COLOR.text });
         slots.push({
           page,
-          right: M + face.regular.widthOfTextAtSize(lead, 9.5) + 14,
-          y: y - 10,
+          x: valueX + face.regular.widthOfTextAtSize(lead, 9.5),
+          y: top - 10,
           block: 'section:reservation',
+          align: 'left',
         });
-        y -= 16;
+        y = top - 16;
       },
     });
   }
@@ -1315,33 +1427,46 @@ export async function generatePdf(
   }
 
   if (p.type === 'abnahme') {
+    const pad = 10;
+    const inner = width - pad * 2;
     const body =
       'Ausschluss des deklaratorischen Schuldanerkenntnisses: Der Vermieter bzw. Verwalter behält sich vor, Mängel und Schäden, die erst nach der Abnahme bekannt werden, gegenüber dem ausscheidenden Mieter geltend zu machen.';
-    const boxH = 16 + textH(body, 9.5, face.regular, TEXT_W);
+    const bodyLines = wrap(body, face.regular, 9.5, inner);
+    const boxH = pad + 14 + bodyLines.length * 13.5 + pad;
     await place(
       {
         id: 'section:reservation',
         height: 28 + boxH + 8,
         draw() {
           section('07', 'Vorbehalt').draw();
+          const top = y;
           page.drawRectangle({
             x: M,
-            y: y - boxH,
-            width: Math.min(width, TEXT_W + 24),
+            y: top - boxH,
+            width,
             height: boxH,
             borderColor: COLOR.line,
             borderWidth: 0.6,
           });
-          y -= 8;
           page.drawText('Vorbehalt der Verwaltung', {
-            x: M + 10,
-            y: y - 10,
+            x: M + pad,
+            y: top - pad - 9,
             size: 9,
             font: face.semi,
             color: COLOR.navy,
           });
-          y -= 16;
-          paintText(body, 9.5, face.regular, COLOR.text, M + 10, 8, TEXT_W);
+          let lineY = top - pad - 14;
+          for (const line of bodyLines) {
+            page.drawText(line, {
+              x: M + pad,
+              y: lineY - 9.5,
+              size: 9.5,
+              font: face.regular,
+              color: COLOR.text,
+            });
+            lineY -= 13.5;
+          }
+          y = top - boxH - 8;
         },
       },
       null,
@@ -1433,11 +1558,13 @@ export async function generatePdf(
   for (const slot of slots) {
     const hit = marks.find((mark) => mark.block === slot.block);
     const label = hit ? String(hit.page) : '–';
-    const tw = face.regular.widthOfTextAtSize(label, 9);
+    const size = slot.align === 'left' ? 9.5 : 9;
+    const tw = face.regular.widthOfTextAtSize(label, size);
+    const x = slot.align === 'right' ? slot.x - tw : slot.x;
     slot.page.drawText(label, {
-      x: slot.right - tw,
+      x,
       y: slot.y,
-      size: 9,
+      size,
       font: face.regular,
       color: COLOR.text,
     });
@@ -1449,18 +1576,23 @@ export async function generatePdf(
   }
 
   const pages = doc.getPages();
-  pages.forEach((pg, i) => {
+  for (const [i, pg] of pages.entries()) {
+    const saved = page;
+    page = pg;
     const footY = 10 * MM;
     if (i > 0) {
-      icon(M, A4[1] - 10 * MM - 8, 8);
-      pg.drawText(safe(CHIP[p.type]), {
-        x: M + 12,
+      icon(M, A4[1] - 10 * MM - 11, 10);
+      const chip = safe(CHIP[p.type]);
+      pg.drawText(chip, {
+        x: M + 14,
         y: A4[1] - 10 * MM - 1,
         size: 8,
         font: face.medium,
         color: COLOR.navy,
       });
-      const right = safe(addressLine);
+      const chipW = face.medium.widthOfTextAtSize(chip, 8);
+      const addrMax = A4[0] - M - (M + 14 + chipW + 10);
+      const right = clip(addressLine, face.regular, 8, Math.max(40, addrMax));
       pg.drawText(right, {
         x: A4[0] - M - face.regular.widthOfTextAtSize(right, 8),
         y: A4[1] - 10 * MM - 1,
@@ -1482,10 +1614,10 @@ export async function generatePdf(
       color: COLOR.line,
     });
     if (i === pages.length - 1) {
-      icon(M, footY + 2, 7);
+      icon(M, footY + 2, 10);
       pg.drawText('Erstellt mit Schlüsselmoment', {
-        x: M + 10,
-        y: footY + 3,
+        x: M + 14,
+        y: footY + 4,
         size: 7.5,
         font: face.regular,
         color: COLOR.muted,
@@ -1493,16 +1625,24 @@ export async function generatePdf(
     }
     const checksum = p.seal ? `Prüfsumme ${shortHash(p.seal.hash)}` : 'Entwurf';
     const left = `Protokoll-Nr. ${number} · ${checksum}`;
-    pg.drawText(safe(left), { x: M, y: footY - 8, size: 7.5, font: face.regular, color: COLOR.muted });
     const pageLabel = `Seite ${i + 1} von ${pages.length}`;
-    pg.drawText(pageLabel, {
-      x: A4[0] - M - face.regular.widthOfTextAtSize(pageLabel, 7.5),
+    const pageW = face.regular.widthOfTextAtSize(pageLabel, 7.5);
+    pg.drawText(clip(left, face.regular, 7.5, width - pageW - 12), {
+      x: M,
       y: footY - 8,
       size: 7.5,
       font: face.regular,
       color: COLOR.muted,
     });
-  });
+    pg.drawText(pageLabel, {
+      x: A4[0] - M - pageW,
+      y: footY - 8,
+      size: 7.5,
+      font: face.regular,
+      color: COLOR.muted,
+    });
+    page = saved;
+  }
 
   return doc.save();
 }

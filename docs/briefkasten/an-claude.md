@@ -2,6 +2,14 @@
 
 <!-- Neue Einträge oben. Format: ## TT.MM. · SM-xx · Bahn X · Kurztitel -->
 
+## 23.10. · SM-20b · Bahn C · PDF-Nacharbeit
+
+Prompt-ID: SM-20b. Nachtrag zu D37/D38, keine neue D-Nummer. Nur `frontend/src/pdf/*` und `tests/pdf.test.ts`. SM-19 nicht angefasst.
+Punkte 1–12 erledigt. Icon als Vektor (18 pt / 10 pt), Textumbruch mit Überlauf-Test, Kacheln und Status-Chips, Vorbehalt aus dem Umbruch, Objekt-Raster mit Einzug/Auszug und „siehe Seite“ ohne Lücke. Bindestrich-Lücke: Inter hatte durch das tnum-Freeze die Ziffernbreite; die cmap zeigt jetzt auf die proportionale Glyphe. Test: Breite von „SM-2026“ = Summe der Glyphen. Abschluss-Prüfungen einzeln, keine Zeile „Alle N Prüfpunkte“. Mängeltext mit „…“.
+Fotos im Mangel: 1 Foto max. 340×283 pt, links. Ab 2 Fotos halbe Breite, Querformat höchstens 4:3, Hochformat höchstens 255 pt, nur einpassen. Eine Reihe bleibt ein Block. Lange Kante 1600 px, JPEG 0,8.
+Ergebnis: `tests/pdf.test.ts` grün (Zusammenhalt, Überlauf, Bindestrich, Schriften, Render). Zehn Fotos à 1600 px: 661 KB, Ziel 5 MB eingehalten. Render Entwurf und unterschrieben unter `frontend/test-results/sm20b/` (gitignored), darin 1, 2 und 3 Fotos. Biome und Typprüfung der PDF-Dateien grün.
+Offen, eigener Auftrag: PDF für „Nicht vorhanden“, `noEmail` und dreivertige Ausstattung.
+
 ## 23.10. · SM-19 · Bahn A + E · Pflichtfelder und ⓘ-Ablauf
 
 Prompt-ID: SM-19. Nicht angefasst: `frontend/src/pdf/*` (SM-20, Commit `5ff0c85`).
