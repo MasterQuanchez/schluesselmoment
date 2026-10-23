@@ -574,12 +574,19 @@ export async function generatePdf(
           triangle(M + 236, y - 12);
           page.drawText('Mangel', { x: M + 248, y: y - 10, size: 9, font: face.semi, color: COLOR.defect });
           page.drawText(mLabel, { x: M + 292, y: y - 10, size: 8.5, font: face.medium, color: COLOR.muted });
-        } else if ((state as string) === 'na') {
+        } else if (state === 'na') {
           page.drawText('–', { x: M + 248, y: y - 10, size: 9, font: face.regular, color: COLOR.muted });
+          page.drawText('Nicht vorhanden', {
+            x: M + 262,
+            y: y - 10,
+            size: 9,
+            font: face.regular,
+            color: COLOR.muted,
+          });
         } else {
           page.drawText('offen', { x: M + 248, y: y - 10, size: 9, font: face.regular, color: COLOR.muted });
         }
-        if (detail)
+        if (detail && state !== 'na')
           page.drawText(detail, { x: M + 340, y: y - 10, size: 8.5, font: face.regular, color: COLOR.muted });
         y -= lineCount * 14 + 2;
       },
@@ -647,57 +654,45 @@ export async function generatePdf(
   }
   const infoOf = (key: string) => defects.find((item) => item.key === key);
 
-  const pairGap = 8;
-  const pairW = (width - pairGap) / 2;
-  const fitPhoto = (img: PDFImage | null, maxW: number, maxH: number) => {
-    if (!img || img.width <= 0 || img.height <= 0) return { w: Math.min(maxW, 140), h: 36 };
-    const scale = Math.min(maxW / img.width, maxH / img.height);
-    return { w: img.width * scale, h: img.height * scale };
-  };
-  const photoLimits = (img: PDFImage | null, single: boolean) => {
-    if (single) return { maxW: 340, maxH: 283 };
-    const landscape = !img || img.width >= img.height;
-    return { maxW: pairW, maxH: landscape ? (pairW * 3) / 4 : 255 };
-  };
+  const photoInset = 14;
+  const pairCellW = (width - photoInset - photoGap) / 2;
   const photoRow = (slice: Array<PDFImage | null>, caption: string, nums: number[], single: boolean): Ink => {
-    const boxes = slice.map((img) => {
-      const lim = photoLimits(img, single);
-      return { img, ...fitPhoto(img, lim.maxW, lim.maxH) };
-    });
-    const imgH = Math.max(...boxes.map((box) => box.h), 1);
+    const cellW = single ? 340 : pairCellW;
+    const cellH = single ? 255 : (pairCellW * 3) / 4;
     return {
-      height: imgH + 16,
+      height: cellH + 16,
       draw() {
         const top = y;
-        for (const [col, box] of boxes.entries()) {
-          const x = M + col * (pairW + pairGap);
-          const bottom = top - box.h;
-          if (box.img) {
-            page.drawImage(box.img, { x, y: bottom, width: box.w, height: box.h });
-            page.drawRectangle({
-              x,
-              y: bottom,
-              width: box.w,
-              height: box.h,
-              borderColor: COLOR.line,
-              borderWidth: 0.5,
+        for (const [col, img] of slice.entries()) {
+          const x = M + photoInset + col * (cellW + photoGap);
+          const bottom = top - cellH;
+          rounded(x, bottom, cellW, cellH, 3, {
+            color: COLOR.band,
+            borderColor: COLOR.line,
+            borderWidth: 0.5,
+          });
+          if (img && img.width > 0 && img.height > 0) {
+            const scale = Math.min(cellW / img.width, cellH / img.height);
+            const w = img.width * scale;
+            const h = img.height * scale;
+            page.drawImage(img, {
+              x: x + (cellW - w) / 2,
+              y: bottom + (cellH - h) / 2,
+              width: w,
+              height: h,
             });
           } else {
-            rounded(x, bottom, box.w, box.h, 3, {
-              color: COLOR.band,
-              borderColor: COLOR.line,
-              borderWidth: 0.5,
-            });
-            page.drawText('Foto nicht verfügbar', {
-              x: x + 8,
-              y: bottom + 14,
+            const missing = 'Foto nicht verfügbar';
+            const tw = face.regular.widthOfTextAtSize(missing, 8);
+            page.drawText(missing, {
+              x: x + (cellW - tw) / 2,
+              y: bottom + cellH / 2 - 3,
               size: 8,
               font: face.regular,
               color: COLOR.muted,
             });
           }
-          const capW = single ? width - col * (pairW + pairGap) : pairW;
-          page.drawText(clip(`Abb. ${nums[col] ?? ''} · ${caption}`, face.regular, 8, capW), {
+          page.drawText(clip(`Abb. ${nums[col] ?? ''} · ${caption}`, face.regular, 8, cellW), {
             x,
             y: bottom - 12,
             size: 8,
@@ -705,7 +700,7 @@ export async function generatePdf(
             color: COLOR.muted,
           });
         }
-        y = top - imgH - 16;
+        y = top - cellH - 16;
       },
     };
   };
@@ -766,19 +761,26 @@ export async function generatePdf(
   }
 
   const planTail = (room: Room): Ink => {
-    const inv = Object.entries(room.inventory)
-      .filter(([, v]) => v === true || (typeof v === 'number' && v > 0))
-      .map(([k, v]) =>
-        typeof v === 'number' ? `${INVENTORY[k]?.label ?? k} ${v}` : (INVENTORY[k]?.label ?? k),
-      );
-    const bits: Ink[] = [];
-    if (inv.length) {
-      const s = `Ausstattung: ${inv.join(', ')}`;
-      bits.push({
-        height: textH(s, 8.5, face.regular, width - 8),
-        draw: () => paintText(s, 8.5, face.regular, COLOR.muted, M, 0, width - 8),
-      });
+    const present: string[] = [];
+    const absent: string[] = [];
+    const openItems: string[] = [];
+    for (const [key, value] of Object.entries(room.inventory)) {
+      const label = INVENTORY[key]?.label ?? key;
+      if (value === null) openItems.push(label);
+      else if (value === false) absent.push(label);
+      else if (value === true) present.push(label);
+      else if (typeof value === 'number') present.push(`${label} ${value}`);
     }
+    const bits: Ink[] = [];
+    const stock = (line: string, color: ReturnType<typeof rgb>) => {
+      bits.push({
+        height: textH(line, 8.5, face.regular, width - 8),
+        draw: () => paintText(line, 8.5, face.regular, color, M, 0, width - 8),
+      });
+    };
+    if (present.length) stock(`Vorhanden: ${present.join(', ')}`, COLOR.text);
+    if (absent.length) stock(`Nicht vorhanden: ${absent.join(', ')}`, COLOR.text);
+    if (p.status !== 'signed' && openItems.length) stock(`Offen: ${openItems.join(', ')}`, COLOR.muted);
     if (room.note.trim()) {
       const s = `Notiz: ${room.note}`;
       bits.push({
@@ -829,7 +831,7 @@ export async function generatePdf(
         checkId,
         label: CHECKS[checkId]?.label ?? checkId,
         state,
-        details: detailText(room, checkId) || '—',
+        details: state === 'na' ? '' : detailText(room, checkId) || '—',
       });
       n += 1;
       i += 1;
@@ -839,7 +841,11 @@ export async function generatePdf(
 
   const moveIn = p.type === 'uebergabe' && p.moveInOn ? p.moveInOn : '';
   const moveOut = p.type === 'abnahme' && p.moveOutOn ? p.moveOutOn : '';
-  const checkedRooms = p.rooms.filter((room) => room.completedAt).length;
+  const checkedRooms = p.rooms.filter((room) => {
+    if (room.completedAt) return true;
+    const states = Object.values(room.checks);
+    return states.length > 0 && states.every((state) => state !== 'open');
+  }).length;
   const keySum = p.keys.reduce((sum, key) => sum + key.count, 0);
   const missingKeys = (['apartment', 'building', 'basement', 'mailbox'] as const).filter(
     (kind) => !p.keys.some((key) => key.kind === kind && key.count > 0),
@@ -927,9 +933,10 @@ export async function generatePdf(
   const tenantLines = tenant
     ? [
         tenant.name,
-        [tenant.email, tenant.newAddress ? `neue Anschrift: ${tenant.newAddress}` : '']
-          .filter(Boolean)
-          .join(' · '),
+        [tenant.noEmail ? 'E-Mail: keine angegeben' : tenant.email, tenant.phone].filter(Boolean).join(' · '),
+        p.type === 'abnahme' && tenant.newAddress.trim()
+          ? `Neue Adresse (nach Auszug): ${tenant.newAddress.trim()}`
+          : '',
       ].filter(Boolean)
     : [];
   const colW = width / 2 - 14;
@@ -1476,11 +1483,21 @@ export async function generatePdf(
   const signers = requiredSigners(p);
   const confirm =
     'Die Unterzeichnenden bestätigen, dass dieses Protokoll vor Ort gemeinsam aufgenommen wurde.';
+  const sealSentence =
+    'SHA-256 über alle Protokolldaten, Unterschriften und Fotos. Jede nachträgliche Änderung ergibt eine andere Prüfsumme.';
+  const sealInner = width - 20;
+  const sealLines = p.seal ? wrap(sealSentence, face.regular, 8.5, sealInner) : [];
+  const hashRows = !p.seal
+    ? []
+    : face.regular.widthOfTextAtSize(p.seal.hash, 9) <= sealInner
+      ? [p.seal.hash]
+      : [p.seal.hash.slice(0, 32), p.seal.hash.slice(32)].filter(Boolean);
+  const sealBoxH = p.seal ? 10 + 16 + sealLines.length * 12 + 6 + hashRows.length * 13 + 10 : 0;
   const signH =
     28 +
     textH(confirm, 8.5, face.regular, TEXT_W, 8) +
     Math.ceil(signers.length / 2) * 104 +
-    (p.seal ? 64 : 20);
+    (p.seal ? sealBoxH + 8 : 20);
   await place(
     {
       id: 'signatures',
@@ -1524,29 +1541,39 @@ export async function generatePdf(
           y = top - 104;
         }
         if (p.seal) {
-          const sentence =
-            'SHA-256 über alle Protokolldaten, Unterschriften und Fotos. Jede nachträgliche Änderung ergibt eine andere Prüfsumme.';
-          const lines = wrap(sentence, face.regular, 7.5, width - 20);
-          const boxH = 28 + lines.length * 10;
-          rounded(M, y - boxH, width, boxH, 6, { color: COLOR.band });
-          page.drawText('Prüfsumme', { x: M + 10, y: y - 14, size: 9, font: face.semi, color: COLOR.navy });
-          lines.forEach((line, i) => {
+          const top = y;
+          rounded(M, top - sealBoxH, width, sealBoxH, 6, { color: COLOR.band });
+          let cursor = top - 10;
+          page.drawText('Prüfsumme', {
+            x: M + 10,
+            y: cursor - 9,
+            size: 9,
+            font: face.semi,
+            color: COLOR.navy,
+          });
+          cursor -= 16;
+          for (const line of sealLines) {
             page.drawText(line, {
               x: M + 10,
-              y: y - 26 - i * 10,
-              size: 7.5,
+              y: cursor - 8.5,
+              size: 8.5,
               font: face.regular,
               color: COLOR.muted,
             });
-          });
-          page.drawText(p.seal.hash, {
-            x: M + 10,
-            y: y - boxH + 8,
-            size: 7.5,
-            font: face.regular,
-            color: COLOR.text,
-          });
-          y -= boxH + 8;
+            cursor -= 12;
+          }
+          cursor -= 6;
+          for (const line of hashRows) {
+            page.drawText(line, {
+              x: M + 10,
+              y: cursor - 9,
+              size: 9,
+              font: face.regular,
+              color: COLOR.text,
+            });
+            cursor -= 13;
+          }
+          y = top - sealBoxH - 8;
         } else {
           paintText('Entwurf – noch keine Prüfsumme.', 9, face.semi, COLOR.defect);
         }
@@ -1581,12 +1608,15 @@ export async function generatePdf(
     page = pg;
     const footY = 10 * MM;
     if (i > 0) {
-      icon(M, A4[1] - 10 * MM - 11, 10);
+      const headBaseline = A4[1] - 10 * MM - 1;
+      const headSize = 8;
+      const iconSize = 10;
+      icon(M, headBaseline + headSize * 0.35 - iconSize / 2, iconSize);
       const chip = safe(CHIP[p.type]);
       pg.drawText(chip, {
         x: M + 14,
-        y: A4[1] - 10 * MM - 1,
-        size: 8,
+        y: headBaseline,
+        size: headSize,
         font: face.medium,
         color: COLOR.navy,
       });

@@ -95,7 +95,7 @@ describe('PDF', () => {
     expect(
       pdfFileName({ ...p, type: 'uebergabe', property: { ...p.property, street: 'Große Straße 1' } }),
     ).toMatch(/^\d{4}-\d{2}-\d{2}_Uebergabeprotokoll_Grosse-Strasse-1_SM-\d{4}-[0-9a-f]{4}\.pdf$/);
-  });
+  }, 30_000);
 
   it('setzt Betreff und Keyword nur beim Demo-Protokoll', async () => {
     const demo = await PDFDocument.load(
@@ -207,6 +207,7 @@ describe('PDF', () => {
       }
       expect(bottom(mark)).toBeGreaterThanOrEqual(contentBottom);
     }
+    assertNoTextOverlap(layout);
     for (const id of defectIds) {
       const overview = layout.find((mark) => mark.block === `overview:${id}`);
       const defect = defects.find((mark) => mark.block === id);
@@ -284,10 +285,26 @@ describe('PDF', () => {
         unit: '2. OG',
       },
       landlord: { ...p.landlord, name: 'Hausverwaltung Beispiel' },
-      tenants: [{ ...tenant, newAddress: 'Neue Straße 2, 70174 Stuttgart, Hinterhaus links' }],
+      tenants: [
+        {
+          ...tenant,
+          email: '',
+          noEmail: true,
+          newAddress: 'Neue Straße 2, 70174 Stuttgart, Hinterhaus links',
+        },
+      ],
+      keys: p.keys.map((key) =>
+        key.kind === 'apartment'
+          ? { ...key, count: 2 }
+          : key.kind === 'building'
+            ? { ...key, count: 1 }
+            : key,
+      ),
       rooms: p.rooms.map((room): Room => {
         const all = confirmAllChecks(room);
-        if (room.id !== 'kitchen') return all;
+        const done = '2026-10-23T11:00:00.000Z';
+        if (room.id === 'hallway') return { ...setCheck(all, 'lights', 'na'), completedAt: done };
+        if (room.id !== 'kitchen') return { ...all, completedAt: done };
         const ceiling = updateDefect(setCheck(all, 'ceiling', 'defect'), 'ceiling', {
           description: 'Feuchter Fleck an der Decke',
           photoIds: ['c1'],
@@ -297,22 +314,39 @@ describe('PDF', () => {
             'Lange Mangelbeschreibung an der Wand, die in der Übersicht gekürzt werden muss, weil sie sonst über die Spalte läuft.',
           photoIds: ['w1', 'w2'],
         });
-        return updateDefect(setCheck(walls, 'floor', 'defect'), 'floor', {
+        const floor = updateDefect(setCheck(walls, 'floor', 'defect'), 'floor', {
           description: 'Kratzer im Boden',
           photoIds: ['f1', 'f2', 'f3'],
         });
+        return {
+          ...floor,
+          completedAt: done,
+          inventory: { bakingTray: 2, oven: true, fridge: false, hob: null },
+        };
       }),
     };
-    const dir = new URL('../test-results/sm20b/', import.meta.url);
+    const dir = new URL('../test-results/sm20c/', import.meta.url);
     const draftDir = new URL('entwurf/', dir);
     const signedDir = new URL('unterschrieben/', dir);
     mkdirSync(draftDir, { recursive: true });
     mkdirSync(signedDir, { recursive: true });
-    const draftBytes = await generatePdf(p, async (id) => photos[id] ?? null);
+    const draftLayout: PdfLayoutMark[] = [];
+    const draftBytes = await generatePdf(p, async (id) => photos[id] ?? null, draftLayout);
     const draftDoc = await PDFDocument.load(draftBytes);
     const draftPath = new URL('entwurf.pdf', dir);
     writeFileSync(draftPath, draftBytes);
-    await renderPages(draftPath, draftDir, draftDoc.getPageCount());
+    const draftText = await renderPages(draftPath, draftDir, draftDoc.getPageCount());
+    assertNoTextOverlap(draftLayout);
+    expectKpi(draftText, '7', 'Räume geprüft');
+    expectKpi(draftText, '3', 'Mängel');
+    expectKpi(draftText, '3', 'Schlüssel übergeben');
+    expect(draftText).toContain('E-Mail: keine angegeben');
+    expect(draftText).toContain('Neue Adresse (nach Auszug):');
+    expect(draftText).toContain('Vorhanden:');
+    expect(draftText).toContain('Backblech 2');
+    expect(draftText).toContain('Nicht vorhanden: Kühlschrank');
+    expect(draftText).toContain('Offen:');
+    expect(draftText).toMatch(/Lichter\s+–\s+Nicht vorhanden/);
 
     const signedAt = '2026-10-23T15:04:00.000Z';
     const signed: Protocol = {
@@ -324,7 +358,8 @@ describe('PDF', () => {
       ],
       seal: { algorithm: 'SHA-256', hash: 'ab'.repeat(32), sealedAt: signedAt },
     };
-    const signedBytes = await generatePdf(signed, async (id) => photos[id] ?? null);
+    const signedLayout: PdfLayoutMark[] = [];
+    const signedBytes = await generatePdf(signed, async (id) => photos[id] ?? null, signedLayout);
     const signedDoc = await PDFDocument.load(signedBytes);
     const signedPath = new URL('unterschrieben.pdf', dir);
     writeFileSync(signedPath, signedBytes);
@@ -336,6 +371,8 @@ describe('PDF', () => {
     expect(text).toContain('Auszug zum');
     expect(text).toContain('30.11.2026');
     expect(text).toContain('…');
+    expect(text).not.toContain('Offen:');
+    assertNoTextOverlap(signedLayout);
   }, 180_000);
 
   it('bleibt mit zehn Fotos unter 5 MB', async () => {
@@ -361,6 +398,41 @@ describe('PDF', () => {
     writeFileSync(new URL('zehn-fotos-bytes.txt', dir), `${bytes.byteLength}\n`);
   }, 60_000);
 });
+
+function textBox(mark: PdfLayoutMark) {
+  const x = mark.x ?? 0;
+  const width = mark.width ?? 0;
+  return {
+    page: mark.page,
+    x1: x,
+    x2: x + width,
+    y1: mark.y - mark.height * 0.2,
+    y2: mark.y + mark.height * 0.8,
+  };
+}
+
+function assertNoTextOverlap(layout: PdfLayoutMark[]) {
+  const runs = layout.filter((mark) => mark.block === 'run').map(textBox);
+  for (let i = 0; i < runs.length; i++) {
+    const a = runs[i];
+    if (!a) continue;
+    for (let j = i + 1; j < runs.length; j++) {
+      const b = runs[j];
+      if (!b || a.page !== b.page) continue;
+      const ix = Math.min(a.x2, b.x2) - Math.max(a.x1, b.x1);
+      const iy = Math.min(a.y2, b.y2) - Math.max(a.y1, b.y1);
+      if (ix > 0.8 && iy > 0.8) {
+        throw new Error(`Text überlappt auf Seite ${a.page} (${ix.toFixed(1)} × ${iy.toFixed(1)} pt)`);
+      }
+    }
+  }
+}
+
+function expectKpi(text: string, value: string, label: string) {
+  const at = text.indexOf(label);
+  expect(at).toBeGreaterThan(-1);
+  expect(text.slice(Math.max(0, at - 12), at + label.length + 12)).toContain(value);
+}
 
 function tenPhotoJpegs(): Uint8Array[] {
   const dir = fileURLToPath(new URL('../test-results/sm20b/quellen/', import.meta.url));

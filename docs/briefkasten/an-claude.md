@@ -2,6 +2,14 @@
 
 <!-- Neue Einträge oben. Format: ## TT.MM. · SM-xx · Bahn X · Kurztitel -->
 
+## 23.10. · SM-20c · Bahn C · PDF-Korrekturen und SM-19-Felder
+
+Prompt-ID: SM-20c. Nachtrag zu D37/D38, keine neue D-Nummer. Nur `frontend/src/pdf/*` und `tests/pdf.test.ts`. SM-21 nicht angefasst.
+A: Prüfsumme steht unter dem Erklärsatz, Hash in eigener Zeile, Kastenhöhe aus dem Inhalt. Test verbietet überlappende Textläufe im ganzen Dokument. Fotos sitzen in 4:3-Zellen (#F1F5FB, Rand, Radius 3), Bild zentriert eingepasst; ein Foto 340×255 pt, ab zwei Fotos halbe Breite. Hochformat bleibt in der Zelle. Mangel-Fotos und Bildunterschriften bündig mit dem Text, die Linie läuft daneben bis unter die letzte Unterschrift. „Räume geprüft“ zählt Räume mit `completedAt` oder ohne offenen Punkt. „Schlüssel übergeben“ ist die Summe. Mini-Icon in der Kopfzeile auf der Textmitte.
+B: `na` als „– Nicht vorhanden“, nicht gebündelt, kein Mangel. Ausstattung „Vorhanden“ / „Nicht vorhanden“, Anzahlen inklusive 0, `null` im Entwurf grau als „Offen“. `noEmail`: „E-Mail: keine angegeben“. `newAddress` nur bei Abnahme, eigene Zeile, leer weggelassen.
+Ergebnis: `tests/pdf.test.ts` grün. Fixture: 7 Räume, 3 Mängel, 3 Schlüssel. Render Entwurf und unterschrieben unter `frontend/test-results/sm20c/` (gitignored). Biome der PDF-Dateien grün.
+Offen: keine.
+
 ## 23.10. · SM-20b · Bahn C · PDF-Nacharbeit
 
 Prompt-ID: SM-20b. Nachtrag zu D37/D38, keine neue D-Nummer. Nur `frontend/src/pdf/*` und `tests/pdf.test.ts`. SM-19 nicht angefasst.
