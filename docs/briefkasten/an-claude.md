@@ -2,6 +2,16 @@
 
 <!-- Neue Einträge oben. Format: ## TT.MM. · SM-xx · Bahn X · Kurztitel -->
 
+## 23.10. · SM-20 · Bahn C · PDF-Design
+
+Prompt-ID: SM-20. Commit-Nachricht: SM-20: PDF-Design. Nicht angefasst: SM-18-Dateien, SM-19, Startseite.
+ACs: Premium-PDF nach Muster. Plus Jakarta Sans für Überschriften, Inter für Text, tabellarische Ziffern eingefroren, Fallback Helvetica. Seite 1 „Auf einen Blick“, Mängelübersicht mit Seitenzahlen im zweiten Durchlauf. Prüfsumme statt „Versiegelt“, kein QR-Code.
+Entscheidungen: D37 „PDF: Jakarta (Überschriften) + Inter (Text), statisch eingebettet, tnum eingefroren“. D38 „PDF-Layout ‚Auf einen Blick‘ + Prüfsumme statt Versiegelt“. Beide Zeilen stehen in `docs/app/DECISIONS.md` (schon in `880ef4c`, die Datei hatte die Zeilen beim SM-18-Commit). D36 bleibt SM-18.
+Felder: `handoverOn` für „Übergabe am“, Protokoll-Jahr und Dateiname. `moveInOn` nur bei Übergabe („Einzug am“). `moveOutOn` nur bei Abnahme („Auszug zum“). Leeres Datum lässt die Zeile weg. Kein `createdAt`-Fallback.
+Ergebnis: `tests/pdf.test.ts` 6 grün, darunter Schriften und Helvetica-Fallback, Seitenzahlen der Mängelübersicht, Metadaten, Dateiname, Demo-Render plus Graustufen unter `frontend/test-results/sm20/` (gitignored, lokales pdfjs, kein CDN). Demo ohne Fotos ≤ 250 kB. Vier TTFs im Service Worker. Produktions-Build legt die Schriften als Assets ab.
+Prüfung: Biome der PDF-Dateien grün. Typprüfung der PDF-Dateien grün. `tsc` für das ganze Frontend scheitert an uncommitteten Dateien eines anderen Chats (`na`, `noEmail`, Schemaversion 3 in `schema.ts` und Folgedateien). Die sind nicht in diesem Commit.
+Offene Punkte: Nach dem Push des anderen Schemas einmal rebasen. Zustand `na` wird im PDF schon als grauer Strich gezeichnet, sobald er im Typ ist.
+
 ## 23.10. · SM-18 · Bahn A + B · Unterschrift und UX-Feinschliff
 
 Prompt-ID: SM-18. Nicht angefasst: PDF (`frontend/src/pdf/*`, SM-20), Mangel-Schalter und Chip/ⓘ (SM-19), Startseite (SM-09), Schriftgrößen allgemein (SM-21).
