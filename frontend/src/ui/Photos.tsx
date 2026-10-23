@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { photoUrl, removePhoto, storePhoto } from '@/storage/photos';
 import { Icon } from './Icon';
+import { useToast } from './kit';
 
 function Thumb({ id, onRemove, disabled }: { id: string; onRemove: () => void; disabled?: boolean }) {
   const [url, setUrl] = useState<string | null>(null);
@@ -44,6 +45,17 @@ export function PhotoStrip({
   variant?: 'tile' | 'pills';
 }) {
   const [busy, setBusy] = useState(false);
+  const [toast, showToast] = useToast();
+  const pendingDelete = useRef<{ id: string; previous: string[]; timer: number } | null>(null);
+
+  useEffect(() => {
+    return () => {
+      const pending = pendingDelete.current;
+      if (!pending) return;
+      window.clearTimeout(pending.timer);
+      void removePhoto(pending.id);
+    };
+  }, []);
   const add = async (files: FileList | null) => {
     if (!files?.length) return;
     setBusy(true);
@@ -66,8 +78,29 @@ export function PhotoStrip({
       id={id}
       disabled={disabled}
       onRemove={() => {
+        const previous = pendingDelete.current;
+        if (previous) {
+          window.clearTimeout(previous.timer);
+          void removePhoto(previous.id);
+        }
+        const snapshot = ids;
         onChange(ids.filter((x) => x !== id));
-        void removePhoto(id);
+        const timer = window.setTimeout(() => {
+          pendingDelete.current = null;
+          void removePhoto(id);
+        }, 5000);
+        pendingDelete.current = { id, previous: snapshot, timer };
+        showToast('Gelöscht', {
+          ms: 5000,
+          actionLabel: 'Rückgängig',
+          onAction: () => {
+            const current = pendingDelete.current;
+            if (!current || current.id !== id) return;
+            window.clearTimeout(current.timer);
+            pendingDelete.current = null;
+            onChange(current.previous);
+          },
+        });
       }}
     />
   ));
@@ -103,27 +136,31 @@ export function PhotoStrip({
           </div>
         )}
         {ids.length ? <div className="thumbs">{thumbs}</div> : null}
+        {toast}
       </div>
     );
   }
   return (
-    <div className="thumbs">
-      {thumbs}
-      {disabled ? null : (
-        <label className="thumb thumb--add" aria-label="Foto aufnehmen">
-          {busy ? '…' : <Icon name="camera" size={26} />}
-          <input
-            type="file"
-            accept="image/*"
-            capture="environment"
-            multiple
-            onChange={(e) => {
-              onFiles(e.currentTarget.files);
-              e.currentTarget.value = '';
-            }}
-          />
-        </label>
-      )}
-    </div>
+    <>
+      <div className="thumbs">
+        {thumbs}
+        {disabled ? null : (
+          <label className="thumb thumb--add" aria-label="Foto aufnehmen">
+            {busy ? '…' : <Icon name="camera" size={26} />}
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              multiple
+              onChange={(e) => {
+                onFiles(e.currentTarget.files);
+                e.currentTarget.value = '';
+              }}
+            />
+          </label>
+        )}
+      </div>
+      {toast}
+    </>
   );
 }

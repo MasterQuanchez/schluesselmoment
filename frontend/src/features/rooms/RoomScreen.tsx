@@ -10,16 +10,21 @@ import {
   inventoryGroups,
   issueLabel,
   missingAttributes,
+  parseCount,
   photoCountLabel,
   roomHeadline,
   roomIssues,
   roomProgress,
+  setCheck,
+  stepCount,
 } from '@/domain/protocol';
 import type { CheckState, Protocol, Room } from '@/domain/schema';
 import { navigate } from '@/router';
 import { photoUrl } from '@/storage/photos';
 import { useProtocol } from '@/storage/useProtocol';
 import { useSettings } from '@/storage/useSettings';
+import { useDismissHistory } from '@/ui/dismiss';
+import { tick } from '@/ui/haptic';
 import { Icon } from '@/ui/Icon';
 import { Loading, StepNav, TopBar, useToast } from '@/ui/kit';
 import { ElementSheet } from './ElementSheet';
@@ -68,28 +73,26 @@ function InventoryGroups({
             if (!def) return null;
             const value = room.inventory[itemId];
             return (
-              <div key={itemId} className="switch-row">
-                <span className="grow">{def.label}</span>
-                <div className="row">
+              <div key={itemId} className="equip">
+                <span className="equip__label">{def.label}</span>
+                <div className="segment">
                   <button
                     type="button"
-                    className="chip chip--option"
                     aria-label={`${def.label}: vorhanden`}
                     aria-pressed={value === true}
                     disabled={locked}
                     onClick={() => onChange(itemId, true)}
                   >
-                    <Icon name="check" size={14} /> vorhanden
+                    vorhanden
                   </button>
                   <button
                     type="button"
-                    className="chip chip--option"
                     aria-label={`${def.label}: nicht vorhanden`}
                     aria-pressed={value === false}
                     disabled={locked}
                     onClick={() => onChange(itemId, false)}
                   >
-                    – nicht vorhanden
+                    nicht vorhanden
                   </button>
                 </div>
               </div>
@@ -105,8 +108,8 @@ function InventoryGroups({
             if (!def) return null;
             const value = room.inventory[itemId];
             return (
-              <div key={itemId} className="switch-row">
-                <span className="grow">{def.label}</span>
+              <div key={itemId} className="equip">
+                <span className="equip__label">{def.label}</span>
                 <CountStepper
                   label={def.label}
                   value={typeof value === 'number' ? value : null}
@@ -141,19 +144,23 @@ function CountStepper({
         type="button"
         disabled={disabled}
         aria-label={`${label} weniger`}
-        onClick={() => {
-          if (value === null) return;
-          onChange(value <= 0 ? null : value - 1);
-        }}
+        onClick={() => onChange(stepCount(value, -1))}
       >
         −
       </button>
-      <output aria-live="polite">{value === null ? '–' : value}</output>
+      <input
+        inputMode="numeric"
+        aria-label={`${label} Anzahl`}
+        disabled={disabled}
+        value={value === null ? '' : String(value)}
+        placeholder="–"
+        onChange={(e) => onChange(parseCount(e.currentTarget.value))}
+      />
       <button
         type="button"
         disabled={disabled}
         aria-label={`${label} mehr`}
-        onClick={() => onChange(value === null ? 0 : Math.min(99, value + 1))}
+        onClick={() => onChange(stepCount(value, 1))}
       >
         +
       </button>
@@ -161,7 +168,7 @@ function CountStepper({
   );
 }
 
-export function RoomScreen({ id, roomId }: { id: string; roomId: string }) {
+export function RoomScreen({ id, roomId, checkId }: { id: string; roomId: string; checkId?: string }) {
   const { state, update } = useProtocol();
   const { settings } = useSettings();
   const custom = settings?.customPhrases ?? [];
@@ -170,6 +177,12 @@ export function RoomScreen({ id, roomId }: { id: string; roomId: string }) {
   const [sheetFocus, setSheetFocus] = useState<'photos' | 'description' | undefined>(undefined);
   const [nudgeId, setNudgeId] = useState<string | null>(null);
   const infoRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const dismissSheet = useDismissHistory(openId !== null, () => setOpenId(null));
+
+  useEffect(() => {
+    if (!checkId || !CHECKS[checkId]) return;
+    setOpenId(checkId);
+  }, [checkId]);
 
   if (state.status !== 'ready') return <Loading state={state} />;
   const p = state.protocol;
@@ -191,9 +204,9 @@ export function RoomScreen({ id, roomId }: { id: string; roomId: string }) {
   const nextRoom = p.rooms[idx + 1];
   const ready = issues.length === 0;
 
-  const openSheet = (checkId: string, focus?: 'photos' | 'description') => {
+  const openSheet = (nextId: string, focus?: 'photos' | 'description') => {
     setSheetFocus(focus);
-    setOpenId(checkId);
+    setOpenId(nextId);
   };
 
   const nudgeChip = (checkId: string) => {
@@ -267,7 +280,7 @@ export function RoomScreen({ id, roomId }: { id: string; roomId: string }) {
             <span className={headlineTone}>{headline}</span>
           </p>
           <div className="meter" aria-hidden="true">
-            <span style={{ width: `${(progress.done / Math.max(1, progress.total)) * 100}%` }} />
+            <span style={{ transform: `scaleX(${progress.done / Math.max(1, progress.total)})` }} />
           </div>
         </div>
 
@@ -300,6 +313,7 @@ export function RoomScreen({ id, roomId }: { id: string; roomId: string }) {
                         setRoom((r) => cycleCheck(r, checkId));
                         return;
                       }
+                      tick();
                       const next = cycleCheck(room, checkId);
                       setRoom(() => next);
                       if (missingAttributes(next, checkId).length) openSheet(checkId);
@@ -376,6 +390,22 @@ export function RoomScreen({ id, roomId }: { id: string; roomId: string }) {
               >
                 <Icon name="camera" size={18} /> {photoCountLabel(d.photoIds.length)}
               </button>
+              {locked ? null : (
+                <button
+                  type="button"
+                  className="btn btn--text"
+                  onClick={() => {
+                    setRoom((r) => setCheck(r, checkId, 'open'));
+                    showToast('Gelöscht', {
+                      ms: 5000,
+                      actionLabel: 'Rückgängig',
+                      onAction: () => setRoom((r) => setCheck(r, checkId, 'defect')),
+                    });
+                  }}
+                >
+                  Mangel zurücksetzen
+                </button>
+              )}
             </div>
           );
         })}
@@ -455,9 +485,9 @@ export function RoomScreen({ id, roomId }: { id: string; roomId: string }) {
           onChange={setRoom}
           onError={showToast}
           onClose={() => {
-            const checkId = openId;
-            setOpenId(null);
-            infoRefs.current[checkId]?.focus();
+            const current = openId;
+            dismissSheet();
+            if (current) infoRefs.current[current]?.focus();
           }}
         />
       ) : null}

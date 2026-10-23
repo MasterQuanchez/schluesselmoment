@@ -23,7 +23,7 @@ export function RoomsScreen({ id }: { id: string }) {
             Tippen Sie auf einen Raum, um Mängel zu erfassen · {done}/{p.rooms.length} erledigt
           </p>
           <div className="meter" aria-hidden="true">
-            <span style={{ width: `${(done / Math.max(1, p.rooms.length)) * 100}%` }} />
+            <span style={{ transform: `scaleX(${done / Math.max(1, p.rooms.length)})` }} />
           </div>
         </div>
         <ul className="list">

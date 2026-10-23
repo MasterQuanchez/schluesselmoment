@@ -6,6 +6,7 @@ import type { Protocol, ProtocolType } from '@/domain/schema';
 import { href, navigate } from '@/router';
 import { deleteProtocol, getSettings, listProtocols, saveProtocol } from '@/storage/db';
 import { useSettings } from '@/storage/useSettings';
+import { useDismissHistory } from '@/ui/dismiss';
 import { Icon } from '@/ui/Icon';
 import { TopBar, useToast } from '@/ui/kit';
 import { showIosInstallHint } from './installHint';
@@ -23,6 +24,8 @@ export function HomeScreen() {
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const { settings, update } = useSettings();
   const [toast, showToast] = useToast();
+  const [pendingDelete, setPendingDelete] = useState<Protocol | null>(null);
+  const dismissDelete = useDismissHistory(pendingDelete !== null, () => setPendingDelete(null));
 
   useEffect(() => {
     const onPrompt = (event: Event) => {
@@ -52,9 +55,8 @@ export function HomeScreen() {
   };
 
   const remove = async (p: Protocol) => {
-    // Bewusst nativer Dialog: verhindert versehentliches Löschen (Fotos werden mitgelöscht)
-    if (!window.confirm(`Protokoll „${p.property.street || 'ohne Adresse'}“ inkl. Fotos löschen?`)) return;
     await deleteProtocol(p.id);
+    dismissDelete();
     showToast('Gelöscht');
     reload();
   };
@@ -161,7 +163,7 @@ export function HomeScreen() {
                     type="button"
                     className="btn btn--ghost btn--danger"
                     aria-label="Löschen"
-                    onClick={() => void remove(p)}
+                    onClick={() => setPendingDelete(p)}
                   >
                     <Icon name="trash" />
                   </button>
@@ -174,6 +176,30 @@ export function HomeScreen() {
       <button type="button" className="fab" aria-label="Neues Protokoll" onClick={() => setChoose(true)}>
         <Icon name="plus" size={28} />
       </button>
+      {pendingDelete ? (
+        <div className="dialog-root">
+          <button type="button" className="sheet-backdrop" aria-label="Abbrechen" onClick={dismissDelete} />
+          <div className="dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-title">
+            <h2 id="delete-title" className="section-title">
+              Protokoll löschen?
+            </h2>
+            <p>
+              „{pendingDelete.property.street || 'ohne Adresse'}“ wird mit allen Fotos von diesem Gerät
+              gelöscht.
+            </p>
+            <button
+              type="button"
+              className="btn btn--danger-fill btn--block"
+              onClick={() => void remove(pendingDelete)}
+            >
+              Protokoll löschen
+            </button>
+            <button type="button" className="btn btn--ghost btn--block" onClick={dismissDelete}>
+              Abbrechen
+            </button>
+          </div>
+        </div>
+      ) : null}
       {toast}
     </>
   );

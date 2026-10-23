@@ -4,6 +4,7 @@ import { applyFeatures, protocolIssues } from '@/domain/protocol';
 import type { Features, Party, Protocol } from '@/domain/schema';
 import { href } from '@/router';
 import { useProtocol } from '@/storage/useProtocol';
+import { Icon } from '@/ui/Icon';
 import { Field, Loading, StepNav, Stepper, Switch, TopBar } from '@/ui/kit';
 
 function PartyFields({
@@ -80,13 +81,13 @@ function PartyFields({
         </Field>
       </div>
       {tenant ? (
-        <label className="switch-row">
+        <label className="check-row">
           <input
             type="checkbox"
             checked={value.noEmail}
             onChange={(e) => onChange({ ...value, noEmail: e.currentTarget.checked })}
           />
-          Keine E-Mail-Adresse
+          <span>Keine E-Mail-Adresse</span>
         </label>
       ) : null}
       {showNewAddress ? (
@@ -267,8 +268,8 @@ export function BasisScreen({ id, focus }: { id: string; focus?: string }) {
         <h2 className="section-title">Ausstattung</h2>
         <p className="hint">Daraus entsteht die Raumliste. Bereits erfasste Räume bleiben erhalten.</p>
         <fieldset className="card stack" disabled={locked}>
-          <div className="switch-row">
-            <span>Zimmer</span>
+          <div className="equip">
+            <span className="equip__label">Zimmer</span>
             <Stepper
               label="Zimmer"
               value={f.roomCount}
@@ -277,8 +278,8 @@ export function BasisScreen({ id, focus }: { id: string; focus?: string }) {
               onChange={(n) => feat('roomCount', n)}
             />
           </div>
-          <div className="switch-row">
-            <span>Bäder</span>
+          <div className="equip">
+            <span className="equip__label">Bäder</span>
             <Stepper
               label="Bäder"
               value={f.bathroomCount}
@@ -287,9 +288,9 @@ export function BasisScreen({ id, focus }: { id: string; focus?: string }) {
               onChange={(n) => feat('bathroomCount', n)}
             />
           </div>
-          <div className="switch-row">
-            <span>Küche</span>
-            <div className="row">
+          <div className="equip">
+            <span className="equip__label">Küche</span>
+            <div className="segment segment--3">
               {(
                 [
                   ['none', 'Keine'],
@@ -300,7 +301,6 @@ export function BasisScreen({ id, focus }: { id: string; focus?: string }) {
                 <button
                   key={v}
                   type="button"
-                  className="chip chip--option"
                   aria-pressed={f.kitchen === v}
                   onClick={() => feat('kitchen', v)}
                 >
@@ -374,10 +374,10 @@ export function BasisScreen({ id, focus }: { id: string; focus?: string }) {
           />
         ))}
         {locked ? null : (
-          <div className="row">
+          <div className="stack">
             <button
               type="button"
-              className="btn btn--ghost"
+              className="btn btn--text"
               onClick={() =>
                 update((x) => ({
                   ...x,
@@ -385,12 +385,12 @@ export function BasisScreen({ id, focus }: { id: string; focus?: string }) {
                 }))
               }
             >
-              + Weitere Mieter
+              <Icon name="plus" size={18} /> Weitere Mieter
             </button>
             {p.tenants.length > 1 ? (
               <button
                 type="button"
-                className="btn btn--ghost btn--danger"
+                className="btn btn--text btn--danger"
                 onClick={() => update((x) => ({ ...x, tenants: x.tenants.slice(0, -1) }))}
               >
                 Letzten entfernen

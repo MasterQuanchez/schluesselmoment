@@ -43,6 +43,10 @@
 | D41 | 23.10.2026 | Chip = offen↔OK, Mangel nur im ⓘ-Sheet | Der Chip wechselt nur offen und OK. Fehlen Angaben, öffnet sich das Sheet mit „In Ordnung“. Mangel und Nicht vorhanden setzt nur das Sheet. | Entschieden |
 | D42 | 23.10.2026 | Mängel-Schalter entfällt | „Gibt es Mängel?“ kommt weg. Die Raum-Entscheidung folgt aus den Elementen. Unter dem Titel steht die Statuszeile. | Entschieden |
 | D43 | 23.10.2026 | Mieter „Keine E-Mail“ | Haken `noEmail`: die E-Mail dieses Mieters ist keine Pflicht. Beim Senden steht der Hinweis, die Adresse im Mailprogramm zu ergänzen. „Neue Adresse (nach Auszug)“ nur bei Abnahme, freiwillig. | Entschieden (Moritz, 23.10.) |
+| D44 | 23.10.2026 | Native Feel: Systemschrift für Text, Jakarta nur für Überschriften ab 22 px, drei Gewichte, Fließtext 17 px, Trefferflächen mindestens 48 px | Die App soll sich auf iPhone und Android wie eine native App anfühlen. Kein Flüssigglas, kein Sammel-OK, keine Sync-Anzeige. | Entschieden |
+| D45 | 23.10.2026 | Abschluss nennt den ersten konkreten Punkt und die Anzahl weiterer; der Link öffnet das Element | „Flur: nicht abgeschlossen“ sagt nicht, was fehlt. | Entschieden |
+| D46 | 23.10.2026 | Foto löschen und Mangel zurücksetzen ohne Nachfrage, fünf Sekunden Rückgängig. Protokoll löschen über einen eigenen Dialog | `window.confirm` wirkt auf dem Handy fremd. Das Protokoll bleibt ein bewusster Schritt. | Entschieden |
+| D47 | 23.10.2026 | Anzahl bleibt offen („–“), bis plus, minus oder eine Eingabe eine Zahl setzt. 0 nur bewusst | Eine unbeantwortete Anzahl ist kein „0 Stück“. | Entschieden |
 
 D19/D20 bewusst nicht vergeben (SM-01).
 

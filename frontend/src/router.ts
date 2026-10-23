@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
  *   #/p/:id/basis/:fieldId     dasselbe, Feld hervorheben
  *   #/p/:id/raeume             Raumliste
  *   #/p/:id/raeume/:roomId     Schnellerfassung Raum
+ *   #/p/:id/raeume/:roomId/:checkId   Raum, Element-Sheet offen
  *   #/p/:id/zaehler            Zähler & Schlüssel
  *   #/p/:id/zaehler/:fieldId   dasselbe, Feld hervorheben
  *   #/p/:id/abschluss          Prüfen, Unterschrift, PDF
@@ -18,7 +19,7 @@ export type Route =
   | { name: 'settings' }
   | { name: 'basis'; id: string; focus?: string }
   | { name: 'rooms'; id: string }
-  | { name: 'room'; id: string; roomId: string }
+  | { name: 'room'; id: string; roomId: string; checkId?: string }
   | { name: 'meters'; id: string; focus?: string }
   | { name: 'finish'; id: string };
 
@@ -29,7 +30,7 @@ export function parse(hash: string): Route {
   if (a !== 'p' || !id) return { name: 'home' };
   switch (section) {
     case 'raeume':
-      return extra ? { name: 'room', id, roomId: extra } : { name: 'rooms', id };
+      return extra ? { name: 'room', id, roomId: extra, checkId: parts[4] } : { name: 'rooms', id };
     case 'zaehler':
       return { name: 'meters', id, focus: extra };
     case 'abschluss':
@@ -51,7 +52,7 @@ export function href(r: Route): string {
     case 'rooms':
       return `#/p/${e(r.id)}/raeume`;
     case 'room':
-      return `#/p/${e(r.id)}/raeume/${e(r.roomId)}`;
+      return `#/p/${e(r.id)}/raeume/${e(r.roomId)}${r.checkId ? `/${e(r.checkId)}` : ''}`;
     case 'meters':
       return `#/p/${e(r.id)}/zaehler${r.focus ? `/${e(r.focus)}` : ''}`;
     case 'finish':

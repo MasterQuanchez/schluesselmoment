@@ -2,6 +2,15 @@
 
 <!-- Neue Einträge oben. Format: ## TT.MM. · SM-xx · Bahn X · Kurztitel -->
 
+## 23.10. · SM-21 · Bahn B + A · Native Feel
+
+Prompt-ID: SM-21. Nicht angefasst: `frontend/src/pdf/*` (SM-20c, Commit `4aa43bf`).
+Entscheidungen: D44 Systemschrift und Trefferflächen, D45 Abschlusszeile mit erstem Punkt, D46 Rückgängig und Lösch-Dialog, D47 Anzahl bleibt offen.
+Korrekturen aus dem SM-19-Review: Ausstattung, Beschriftung in eigener Zeile über dem Segment, zwei gleich breite Hälften. Anzahl zeigt „–“ und gilt als offen, bis plus, minus oder eine Eingabe eine Zahl setzt. „Keine E-Mail-Adresse“ steht in einer Zeile, das Kästchen links, die ganze Zeile ist antippbar, im Harbour-Stil. „Weitere Mieter“ linksbündig als Textknopf mit Icon. Im Element-Sheet die Statuswahl einzeilig, mindestens 56 px: „OK“, „Mangel“, „Nicht vorh.“. Die Abschluss-Liste nennt den ersten konkreten Punkt und die weiteren („Flur: Wände – noch nicht geprüft (+7 weitere)“). Der Link öffnet den Raum und dieses Element.
+Native Feel: Systemschrift für Text, Plus Jakarta Sans nur für Überschriften ab 22 px, Gewichte 400/600/700. Fließtext 17 px, Eingaben mindestens 16 px. Trefferflächen mindestens 48 px, Chips optisch 40 px. Viewport mit safe-area, 100dvh, kein Blur. Aktiv-Zustand nur über transform. Das Sheet folgt dem Finger. Android-Zurück schließt zuerst Sheet oder Dialog, iOS-Wischen ändert keine Daten. Foto löschen und Mangel zurücksetzen: „Gelöscht · Rückgängig“ (5 s). Protokoll löschen im eigenen Dialog. „✓ Gespeichert“ für 1,5 s in der Kopfzeile, bei Fehler „Nicht gespeichert“. Kurzes Vibrieren bei OK, Mangel und Nicht vorhanden, wenn das Gerät es kann. Warnorange nachgeschärft.
+Ergebnis: typecheck ✓ · test ✓ (50) · lint ✓. Klickpfad Pixel 7, iPhone 15 und 360×740, jeweils „Fehler: keine“. Bei 130 % Schrift kein Überlauf (360, 393, 412). Screenshots `frontend/test-results/sm21/` (gitignored).
+Offen: „Unterschrift verwerfen“ und das PWA-Update fragen weiter über `window.confirm`. Kein echtes Gerät, nur Geräteprofile.
+
 ## 23.10. · SM-20c · Bahn C · PDF-Korrekturen und SM-19-Felder
 
 Prompt-ID: SM-20c. Nachtrag zu D37/D38, keine neue D-Nummer. Nur `frontend/src/pdf/*` und `tests/pdf.test.ts`. SM-21 nicht angefasst.

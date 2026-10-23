@@ -16,6 +16,7 @@ import {
   cycleCheck,
   defectPhrases,
   deletionDate,
+  finishRoomLine,
   getTemplate,
   inventoryGroups,
   isExpired,
@@ -25,6 +26,7 @@ import {
   markNoDefects,
   missingAttributes,
   missingSignatureLabel,
+  parseCount,
   photoCountLabel,
   photoStatusLabel,
   protocolIssues,
@@ -38,9 +40,11 @@ import {
   setDetail,
   sheetCloseLabel,
   startSigning,
+  stepCount,
   updateDefect,
 } from '@/domain/protocol';
 import { Features, Protocol, type Room } from '@/domain/schema';
+import { href, parse } from '@/router';
 
 const PNG = 'data:image/png;base64,iVBORw0KGgo=';
 
@@ -486,5 +490,31 @@ describe('Versand & Aufbewahrung', () => {
     expect(deletionDate(sent, 30)?.toISOString()).toBe('2026-10-31T10:00:00.000Z');
     expect(isExpired(sent, 30, new Date('2026-10-30T00:00:00Z'))).toBe(false);
     expect(isExpired(sent, 30, new Date('2026-11-01T00:00:00Z'))).toBe(true);
+  });
+
+  it('Anzahl bleibt offen, bis plus, minus oder eine Eingabe eine Zahl setzt', () => {
+    expect(stepCount(null, 1)).toBe(1);
+    expect(stepCount(null, -1)).toBe(0);
+    expect(stepCount(0, -1)).toBe(null);
+    expect(stepCount(2, 1)).toBe(3);
+    expect(parseCount('')).toBe(null);
+    expect(parseCount('–')).toBe(null);
+    expect(parseCount('0')).toBe(0);
+    expect(parseCount('4')).toBe(4);
+  });
+
+  it('Abschluss nennt den ersten Punkt und wie viele weitere offen sind', () => {
+    const hallway = buildRooms(Features.parse({}))[0];
+    if (!hallway) throw new Error('kein Raum');
+    const line = finishRoomLine(hallway);
+    expect(line.message).toBe('Flur: Wände – noch nicht geprüft (+7 weitere)');
+    expect(line.checkId).toBe('walls');
+    expect(
+      protocolIssues(createProtocol('uebergabe')).some((issue) =>
+        issue.message.includes('nicht abgeschlossen'),
+      ),
+    ).toBe(false);
+    const route = { name: 'room' as const, id: 'a', roomId: hallway.id, checkId: 'ceiling' };
+    expect(parse(href(route))).toEqual(route);
   });
 });

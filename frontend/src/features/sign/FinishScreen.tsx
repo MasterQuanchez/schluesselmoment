@@ -80,7 +80,7 @@ export function FinishScreen({ id }: { id: string }) {
   const hints = recommendedIssues(p);
   const signers = requiredSigners(p);
   const issueHref = (issue: (typeof issues)[number]) => {
-    if (issue.roomId) return href({ name: 'room', id, roomId: issue.roomId });
+    if (issue.roomId) return href({ name: 'room', id, roomId: issue.roomId, checkId: issue.checkId });
     if (issue.fieldId?.startsWith('field-meter-')) return href({ name: 'meters', id, focus: issue.fieldId });
     if (issue.fieldId) return href({ name: 'basis', id, focus: issue.fieldId });
     return href({ name: 'basis', id });

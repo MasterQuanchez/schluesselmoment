@@ -16,7 +16,9 @@ export function App() {
     <ProtocolProvider key={route.id} id={route.id}>
       {route.name === 'basis' ? <BasisScreen id={route.id} focus={route.focus} /> : null}
       {route.name === 'rooms' ? <RoomsScreen id={route.id} /> : null}
-      {route.name === 'room' ? <RoomScreen id={route.id} roomId={route.roomId} /> : null}
+      {route.name === 'room' ? (
+        <RoomScreen id={route.id} roomId={route.roomId} checkId={route.checkId} />
+      ) : null}
       {route.name === 'meters' ? <MetersScreen id={route.id} focus={route.focus} /> : null}
       {route.name === 'finish' ? <FinishScreen id={route.id} /> : null}
     </ProtocolProvider>

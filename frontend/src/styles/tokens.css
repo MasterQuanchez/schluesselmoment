@@ -65,7 +65,7 @@
 
   /* Status */
   --theme-current-color-status-success: #1f9d74;
-  --theme-current-color-status-warning: #d97a00;
+  --theme-current-color-status-warning: #9a4f00;
   --theme-current-color-status-alert: #e5484d;
   --theme-current-color-status-alert-hover: #f07d80;
   --theme-current-color-status-info: #2e6be6;
@@ -96,7 +96,8 @@
   --spacing-600: 60px;
 
   /* Typography */
-  --font-family:
+  --font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display:
     "Plus Jakarta Sans Variable", "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto,
     sans-serif;
 
@@ -226,14 +227,17 @@
   --c-focus: var(--theme-current-color-primary-fluor);
 
   --font-sans: var(--font-family);
-  --fs-xs: 12px;
-  --fs-sm: 13px;
-  --fs-md: 15px;
-  --fs-lg: 18px;
-  --fs-xl: 30px; /* text-h1 */
-  --fw-medium: 500;
+  --font-heading: var(--font-display);
+  --fs-xs: 0.8125rem; /* 13 px */
+  --fs-sm: 0.8125rem; /* 13 px, Labels und Hinweise */
+  --fs-md: 1.0625rem; /* 17 px Fließtext */
+  --fs-lg: 1.125rem;
+  --fs-xl: 1.875rem; /* 30 px, Jakarta */
+  --fw-medium: 600;
   --fw-semibold: 600;
   --fw-bold: 700;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 
   --sp-1: 4px;
   --sp-2: 8px;

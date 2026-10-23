@@ -31,6 +31,8 @@ function useProtocolState(id: string) {
   const current = useRef<Protocol | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveNote, setSaveNote] = useState<'ok' | 'bad' | null>(null);
+  const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const flush = useCallback(async () => {
     if (timer.current) clearTimeout(timer.current);
@@ -41,8 +43,12 @@ function useProtocolState(id: string) {
     try {
       await saveProtocol(p);
       setSaveError(null);
+      setSaveNote('ok');
+      if (savedTimer.current) clearTimeout(savedTimer.current);
+      savedTimer.current = setTimeout(() => setSaveNote(null), 1500);
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : 'Speichern fehlgeschlagen');
+      setSaveNote('bad');
     }
   }, []);
 
@@ -88,7 +94,7 @@ function useProtocolState(id: string) {
     [flush],
   );
 
-  return { state, update, flush, saveError };
+  return { state, update, flush, saveError, saveNote };
 }
 
 type Ctx = ReturnType<typeof useProtocolState>;
@@ -107,4 +113,9 @@ export function useProtocol(): Ctx {
   const ctx = useContext(ProtocolContext);
   if (!ctx) throw new Error('useProtocol() nur innerhalb von <ProtocolProvider>');
   return ctx;
+}
+
+/** Kopfzeile auf Start und Einstellungen hat keinen Protokoll-Kontext. */
+export function useSaveNote(): 'ok' | 'bad' | null {
+  return useContext(ProtocolContext)?.saveNote ?? null;
 }

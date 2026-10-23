@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect, useState } from 'react';
 import type { Protocol } from '@/domain/schema';
 import { href, type Route } from '@/router';
+import { useSaveNote } from '@/storage/useProtocol';
 import { Icon } from './Icon';
 
 export function TopBar({
@@ -23,6 +24,7 @@ export function TopBar({
           </a>
         ) : null}
         <span className="topbar__title grow">{title}</span>
+        <SaveMark />
         {action}
       </div>
       {children}
@@ -143,23 +145,13 @@ export function Switch({
   label: string;
 }) {
   return (
-    <div className="switch-row">
-      <span>{label}</span>
-      <div className="row">
-        <button
-          type="button"
-          className="chip chip--option"
-          aria-pressed={checked}
-          onClick={() => onChange(true)}
-        >
+    <div className="equip">
+      <span className="equip__label">{label}</span>
+      <div className="segment">
+        <button type="button" aria-pressed={checked} onClick={() => onChange(true)}>
           Ja
         </button>
-        <button
-          type="button"
-          className="chip chip--option"
-          aria-pressed={!checked}
-          onClick={() => onChange(false)}
-        >
+        <button type="button" aria-pressed={!checked} onClick={() => onChange(false)}>
           Nein
         </button>
       </div>
@@ -167,21 +159,45 @@ export function Switch({
   );
 }
 
-/** Kurzer Hinweis unten (z. B. „Gespeichert“, Fehlermeldung). */
-export function useToast(): [ReactNode, (msg: string) => void] {
-  const [msg, setMsg] = useState<string | null>(null);
+function SaveMark() {
+  const note = useSaveNote();
+  if (!note) return null;
+  return (
+    <span className={note === 'bad' ? 'save-mark save-mark--bad' : 'save-mark'} role="status">
+      {note === 'bad' ? 'Nicht gespeichert' : '✓ Gespeichert'}
+    </span>
+  );
+}
+
+type ToastOpts = { ms?: number; actionLabel?: string; onAction?: () => void };
+
+/** Kurzer Hinweis unten. Mit Aktion z. B. „Gelöscht · Rückgängig“. */
+export function useToast(): [ReactNode, (msg: string, opts?: ToastOpts) => void] {
+  const [toast, setToast] = useState<{ msg: string; opts?: ToastOpts } | null>(null);
   useEffect(() => {
-    if (!msg) return;
-    const t = setTimeout(() => setMsg(null), 3200);
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), toast.opts?.ms ?? 3200);
     return () => clearTimeout(t);
-  }, [msg]);
+  }, [toast]);
   return [
-    msg ? (
+    toast ? (
       <div key="toast" className="toast" role="status">
-        {msg}
+        <span>{toast.msg}</span>
+        {toast.opts?.onAction ? (
+          <button
+            type="button"
+            className="toast__action"
+            onClick={() => {
+              toast.opts?.onAction?.();
+              setToast(null);
+            }}
+          >
+            {toast.opts.actionLabel ?? 'Rückgängig'}
+          </button>
+        ) : null}
       </div>
     ) : null,
-    setMsg,
+    (msg, opts) => setToast({ msg, opts }),
   ];
 }
 

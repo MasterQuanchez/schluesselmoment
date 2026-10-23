@@ -142,6 +142,25 @@ export function applyFeatures(p: Protocol, features: Features): Protocol {
 
 // ---------- Schnellerfassung ----------
 
+/**
+ * Anzahl: null ist offen und heißt „–“. + setzt 1, − setzt 0.
+ * Unter 0 wird wieder offen. 0 bleibt nur, wenn es bewusst gewählt wurde.
+ */
+export function stepCount(value: number | null, delta: 1 | -1, max = 99): number | null {
+  if (value === null) return delta > 0 ? 1 : 0;
+  const next = value + delta;
+  if (next < 0) return null;
+  return Math.min(max, next);
+}
+
+/** Eingabe: leer = offen, „0“ = bewusst null Stück, sonst die Zahl. */
+export function parseCount(raw: string, max = 99): number | null {
+  const text = raw.trim().replace('–', '');
+  if (!text) return null;
+  if (!/^\d+$/.test(text)) return null;
+  return Math.min(max, Number(text));
+}
+
 /** Chip antippen: nur offen ↔ OK. Mangel und Nicht vorhanden setzt das Sheet. */
 export function cycleCheck(room: Room, checkId: string): Room {
   const current = room.checks[checkId] ?? 'open';
@@ -403,6 +422,36 @@ export function roomHeadline(room: Room): string {
   return 'Keine Mängel';
 }
 
+/** Erster konkreter Punkt eines offenen Raums, plus Anzahl der weiteren. */
+export function finishRoomLine(room: Room): { message: string; checkId?: string } {
+  const issues = roomIssues(room);
+  const first = issues[0];
+  if (!first) return { message: `${room.label}: nicht abgeschlossen` };
+  const more = issues.length > 1 ? ` (+${issues.length - 1} weitere)` : '';
+  return { message: `${room.label}: ${finishIssueBody(first)}${more}`, checkId: first.checkId || undefined };
+}
+
+function finishIssueBody(issue: RoomIssue): string {
+  if (issue.kind === 'missingInventory') {
+    return issue.missingCount === 1
+      ? '1 Ausstattungspunkt offen'
+      : `${issue.missingCount} Ausstattungspunkte offen`;
+  }
+  const name = CHECKS[issue.checkId]?.label ?? issue.checkId;
+  if (issue.kind === 'open') return `${name} – noch nicht geprüft`;
+  if (issue.kind === 'missingDescription') return `${name} – Beschreibung fehlt`;
+  if (issue.kind === 'missingPhotos') {
+    return issue.missingCount === 1
+      ? `${name} – 1 Foto fehlt`
+      : `${name} – ${issue.missingCount} Fotos fehlen`;
+  }
+  if (issue.kind === 'missingDetail') {
+    if (issue.missingCount === 1 && issue.detail) return `${name} – ${issue.detail} fehlt`;
+    return `${name} – ${issue.missingCount} Angaben fehlen`;
+  }
+  return name;
+}
+
 export function protocolIssues(p: Protocol, over?: RuleFlags): Issue[] {
   const { requireContactFields } = flags(over);
   const issues: Issue[] = [];
@@ -455,7 +504,10 @@ export function protocolIssues(p: Protocol, over?: RuleFlags): Issue[] {
     });
   }
   for (const room of p.rooms) {
-    if (!room.completedAt) issues.push({ roomId: room.id, message: `${room.label}: nicht abgeschlossen` });
+    if (!room.completedAt) {
+      const line = finishRoomLine(room);
+      issues.push({ roomId: room.id, checkId: line.checkId, message: line.message });
+    }
   }
   return issues;
 }

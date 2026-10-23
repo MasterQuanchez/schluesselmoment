@@ -12,14 +12,16 @@ html {
 }
 body {
   margin: 0;
-  background: var(--c-bg);
+  background: var(--c-surface);
   color: var(--c-text);
   font-family: var(--font-sans);
   font-size: var(--fs-md);
-  line-height: 22px;
+  font-weight: 400;
+  line-height: 1.35;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior-y: contain;
+  touch-action: manipulation;
 }
 button,
 input,
@@ -27,9 +29,29 @@ select,
 textarea {
   font: inherit;
   color: inherit;
+  touch-action: manipulation;
+}
+input,
+select,
+textarea {
+  font-size: 1rem;
 }
 button {
   cursor: pointer;
+}
+button,
+.chip,
+.topbar,
+.steps,
+.bottombar,
+.fab,
+.segment button {
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+h1,
+.page-title {
+  font-family: var(--font-heading);
 }
 :focus-visible {
   outline: none;
@@ -56,10 +78,16 @@ img {
   white-space: nowrap;
 }
 @media (prefers-reduced-motion: reduce) {
-  * {
-    /* biome-ignore lint/complexity/noImportantStyles: reduced motion must override component transitions */
-    animation: none !important;
-    /* biome-ignore lint/complexity/noImportantStyles: reduced motion must override component transitions */
-    transition: none !important;
+  *,
+  *::before,
+  *::after {
+    /* biome-ignore lint/complexity/noImportantStyles: reduced motion must cap every duration */
+    animation-duration: 120ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: reduced motion must cap every duration */
+    animation-iteration-count: 1 !important;
+    /* biome-ignore lint/complexity/noImportantStyles: reduced motion must cap every duration */
+    transition-duration: 120ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: reduced motion must cap every duration */
+    scroll-behavior: auto !important;
   }
 }

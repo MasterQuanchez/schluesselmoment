@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { type PointerEvent as ReactPointerEvent, useEffect, useRef, useState } from 'react';
 import { CHECKS, DEFECT_PHRASE_PREVIEW, RULES } from '@/domain/catalog';
 import {
   appendPhrase,
@@ -12,6 +12,7 @@ import {
   updateDefect,
 } from '@/domain/protocol';
 import type { Room } from '@/domain/schema';
+import { tick } from '@/ui/haptic';
 import { Icon } from '@/ui/Icon';
 import { PhotoStrip } from '@/ui/Photos';
 
@@ -40,7 +41,7 @@ export function ElementSheet({
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
-  const startY = useRef<number | null>(null);
+  const drag = useRef<{ y: number; t: number } | null>(null);
   const def = CHECKS[checkId];
   const state = room.checks[checkId] ?? 'open';
   const defect = room.defects[checkId] ?? emptyDefect();
@@ -61,12 +62,75 @@ export function ElementSheet({
           ? root?.querySelector('textarea')
           : null;
     target?.scrollIntoView({ block: 'nearest' });
+    const focusable = () =>
+      [...(root?.querySelectorAll<HTMLElement>('button, a[href], input, textarea, select') ?? [])].filter(
+        (el) => !el.hasAttribute('disabled'),
+      );
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') closeRef.current();
+      if (e.key !== 'Tab' || !root) return;
+      const list = focusable();
+      const first = list[0];
+      const last = list[list.length - 1];
+      if (!first || !last) return;
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    const vv = window.visualViewport;
+    const lift = () => {
+      if (!vv || !root) return;
+      const overlap = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      root.style.setProperty('--keyboard', `${overlap}px`);
+    };
+    vv?.addEventListener('resize', lift);
+    vv?.addEventListener('scroll', lift);
+    lift();
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      vv?.removeEventListener('resize', lift);
+      vv?.removeEventListener('scroll', lift);
+    };
   }, [focus]);
+
+  const choose = (next: 'ok' | 'defect' | 'na') => {
+    if (locked) return;
+    tick();
+    onChange((r) => setCheck(r, checkId, next));
+  };
+
+  const onDragDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    drag.current = { y: e.clientY, t: performance.now() };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const onDragMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const start = drag.current;
+    const sheet = dialogRef.current;
+    if (!start || !sheet) return;
+    const dy = Math.max(0, e.clientY - start.y);
+    sheet.style.transition = 'none';
+    sheet.style.transform = `translateY(${dy}px)`;
+  };
+  const onDragUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const start = drag.current;
+    const sheet = dialogRef.current;
+    drag.current = null;
+    if (!start || !sheet) return;
+    const dy = Math.max(0, e.clientY - start.y);
+    const fast = dy > 24 && performance.now() - start.t < 250;
+    const height = sheet.getBoundingClientRect().height;
+    if (fast || dy > height * 0.3) {
+      closeRef.current();
+      return;
+    }
+    sheet.style.transition = 'transform 200ms var(--ease-drawer)';
+    sheet.style.transform = '';
+  };
 
   return (
     <div className="sheet-root">
@@ -79,13 +143,10 @@ export function ElementSheet({
       <div ref={dialogRef} className="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
         <div
           className="sheet__bar"
-          onPointerDown={(e) => {
-            startY.current = e.clientY;
-          }}
-          onPointerUp={(e) => {
-            if (startY.current !== null && e.clientY - startY.current > 48) closeRef.current();
-            startY.current = null;
-          }}
+          onPointerDown={onDragDown}
+          onPointerMove={onDragMove}
+          onPointerUp={onDragUp}
+          onPointerCancel={onDragUp}
         >
           <span className="sheet__grip" aria-hidden="true" />
           <button
@@ -108,27 +169,30 @@ export function ElementSheet({
               data-kind="ok"
               aria-pressed={state === 'ok'}
               disabled={locked}
-              onClick={() => onChange((r) => setCheck(r, checkId, 'ok'))}
+              onClick={() => choose('ok')}
             >
-              <Icon name="check" size={18} /> In Ordnung
+              <Icon name="check" size={18} />
+              <span className="decision__label">OK</span>
             </button>
             <button
               type="button"
               data-kind="defect"
               aria-pressed={state === 'defect'}
               disabled={locked}
-              onClick={() => onChange((r) => setCheck(r, checkId, 'defect'))}
+              onClick={() => choose('defect')}
             >
-              <Icon name="alert" size={18} /> Mangel
+              <Icon name="alert" size={18} />
+              <span className="decision__label">Mangel</span>
             </button>
             <button
               type="button"
               data-kind="na"
               aria-pressed={state === 'na'}
               disabled={locked}
-              onClick={() => onChange((r) => setCheck(r, checkId, 'na'))}
+              onClick={() => choose('na')}
             >
-              – Nicht vorhanden
+              <span aria-hidden="true">–</span>
+              <span className="decision__label">Nicht vorh.</span>
             </button>
           </div>
           {state === 'defect' ? (
