@@ -2,6 +2,14 @@
 
 <!-- Neue Einträge oben. Format: ## TT.MM. · SM-xx · Bahn X · Kurztitel -->
 
+## 23.10. · SM-10 · Bahn A + D · Morgen-Abschluss
+
+Prompt-ID: SM-10 Morgen-Abschluss.
+Bestand: `origin/main..main` leer. Teil 1 `fa3c0c4`, Teil 2 `9d1cd75`, beide schon auf `origin`. Höchste D-Nummer ist D32. D29 und D30 bleiben die SM-10-Einträge.
+Uncommittete `schema.ts`, `HomeScreen.tsx`, `FinishScreen.tsx`: kein Inhaltsunterschied, nur Zeilenenden. Nicht angefasst. `SettingsScreen.tsx` und `photos.ts` sind sauber.
+Prüfung: typecheck grün. Vitest 31 grün. Ein Lauf des EXIF-Tests ist am Chromium-Start nach 30 s ausgelaufen, der nächste Lauf und die ganze Suite waren grün. Lint grün. Klickpfad Pixel 7 und iPhone 15, jeweils „Fehler: keine“. Gespeichertes Bild 16×32. Port 4173 war belegt, die Vorschau wurde mit dem frischen Build neu gestartet.
+Offene Punkte: kein echtes iPhone.
+
 ## 23.10. · SM-15 · Aufräumen, Detail-Gruppen
 
 Prompt-ID: SM-15. Start nach `git pull`: SM-10 `9d1cd75` und SM-16 `da7b167` liegen auf `main`.
