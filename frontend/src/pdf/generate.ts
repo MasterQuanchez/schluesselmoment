@@ -18,7 +18,11 @@ export type PdfLayoutMark = {
   height: number;
   x?: number;
   width?: number;
+  text?: string;
 };
+
+/** Inter Regular: x-Höhe / em. Mitte der Textzeile liegt darüber, nicht auf der Grundlinie. */
+export const PDF_X_HEIGHT = 1118 / 2048;
 
 const A4: [number, number] = [595.28, 841.89];
 const MM = 72 / 25.4;
@@ -271,7 +275,15 @@ export async function generatePdf(
       if (!font || size <= 0) return;
       const x = options?.x ?? 0;
       const w = font.widthOfTextAtSize(text, size);
-      const mark: PdfLayoutMark = { block: 'run', page: no, y: options?.y ?? 0, height: size, x, width: w };
+      const mark: PdfLayoutMark = {
+        block: 'run',
+        page: no,
+        y: options?.y ?? 0,
+        height: size,
+        x,
+        width: w,
+        text,
+      };
       marks.push(mark);
       layout?.push(mark);
     };
@@ -297,6 +309,20 @@ export async function generatePdf(
     marks.push(mark);
     layout?.push(mark);
   };
+  const markBox = (block: string, x: number, top: number, w: number, h: number) => {
+    const mark: PdfLayoutMark = { block, page: pageNo, y: top, height: h, x, width: w };
+    marks.push(mark);
+    layout?.push(mark);
+  };
+  const textMid = (baseline: number, size: number) => baseline + (PDF_X_HEIGHT * size) / 2;
+  const nameX = M + 26;
+  const detailW = 112;
+  const statusLabelW = face.regular.widthOfTextAtSize('Nicht vorhanden', 9);
+  const iconSlot = 10;
+  const statusW = iconSlot + statusLabelW + 4;
+  const statusX = M + width - detailW - statusW;
+  const detailX = statusX + statusW;
+  const nameMax = statusX - nameX - 6;
   const remaining = () => y - BOTTOM;
 
   const wrap = (text: string, f: PDFFont, size: number, maxW: number): string[] => {
@@ -304,6 +330,16 @@ export async function generatePdf(
     const lines: string[] = [];
     let line = '';
     for (const word of words) {
+      if (word === '·') {
+        if (!line) continue;
+        const kept = `${line} ·`;
+        if (f.widthOfTextAtSize(kept, size) <= maxW) line = kept;
+        else {
+          lines.push(line);
+          line = '';
+        }
+        continue;
+      }
       const test = line ? `${line} ${word}` : word;
       if (f.widthOfTextAtSize(test, size) <= maxW) line = test;
       else {
@@ -319,6 +355,28 @@ export async function generatePdf(
       }
     }
     if (line) lines.push(line);
+    return lines.length ? lines : [''];
+  };
+
+  /** „·“ bleibt am Zeilenende. Die nächste Zeile beginnt mit dem Element. */
+  const wrapJoined = (labels: string[], f: PDFFont, size: number, maxW: number): string[] => {
+    const lines: string[] = [];
+    let line = '';
+    for (const label of labels) {
+      if (!line) {
+        line = label;
+        continue;
+      }
+      const joined = `${line} · ${label}`;
+      if (f.widthOfTextAtSize(safe(joined), size) <= maxW) {
+        line = joined;
+        continue;
+      }
+      const kept = `${line} ·`;
+      lines.push(f.widthOfTextAtSize(safe(kept), size) <= maxW ? safe(kept) : safe(line));
+      line = label;
+    }
+    if (line) lines.push(safe(line));
     return lines.length ? lines : [''];
   };
 
@@ -529,65 +587,112 @@ export async function generatePdf(
       .join(' · ');
   };
 
-  const circleOk = (x: number, baseline: number) => {
+  const circleOk = (left: number, midY: number) => {
     const r = 4.2;
-    const cx = x + r;
-    const cy = baseline + 3.2;
-    page.drawCircle({ x: cx, y: cy, size: r, borderColor: COLOR.ok, borderWidth: 0.9 });
+    const cx = left + r;
+    page.drawCircle({ x: cx, y: midY, size: r, borderColor: COLOR.ok, borderWidth: 0.9 });
     page.drawSvgPath('M 1.3 4.5 L 3.6 6.8 L 7.5 2.0', {
       x: cx - r,
-      y: cy + r,
+      y: midY + r,
       borderColor: COLOR.ok,
       borderWidth: 1.05,
     });
+    markBox('symbol', left, midY + r, r * 2, r * 2);
   };
-  const triangle = (x: number, baseline: number) => {
+  const triangle = (left: number, midY: number) => {
+    const w = 7.6;
+    const h = 6.9;
     page.drawSvgPath('M 4 0.3 L 7.8 7.2 L 0.2 7.2 Z', {
-      x,
-      y: baseline + 7.6,
+      x: left,
+      y: midY + 3.75,
       color: COLOR.defect,
     });
+    markBox('symbol', left, midY + h / 2, w, h);
   };
 
   const planRow = (n: string, label: string, state: string, details: string, mLabel: string): Ink => {
     const nameFont = state === 'defect' ? face.semi : face.regular;
-    const nameLines = wrap(label, nameFont, 10, 200).filter(Boolean);
-    const detail = wrap(details, face.regular, 8.5, width - 340)[0] ?? '';
+    const parts = label.split(' · ').filter(Boolean);
+    const nameLines = (
+      parts.length > 1 ? wrapJoined(parts, nameFont, 10, nameMax) : wrap(label, nameFont, 10, nameMax)
+    ).filter(Boolean);
+    const detailMax = M + width - detailX;
+    const detail = details.trim() ? (wrap(details, face.regular, 8.5, detailMax)[0] ?? '') : '';
     const lineCount = Math.max(nameLines.length, 1);
     return {
       height: lineCount * 14 + 2,
       draw() {
-        page.drawText(safe(n), { x: M, y: y - 10, size: 8.5, font: face.medium, color: COLOR.muted });
-        nameLines.forEach((line, index) => {
+        const baseline = y - 10;
+        page.drawText(safe(n), { x: M, y: baseline, size: 8.5, font: face.medium, color: COLOR.muted });
+        for (const [index, line] of nameLines.entries()) {
           page.drawText(line, {
-            x: M + 28,
-            y: y - 10 - index * 14,
+            x: nameX,
+            y: baseline - index * 14,
             size: 10,
             font: nameFont,
             color: COLOR.text,
           });
-        });
+        }
+        const mid = textMid(baseline, 9);
         if (state === 'ok') {
-          circleOk(M + 236, y - 12);
-          page.drawText('OK', { x: M + 248, y: y - 10, size: 9, font: face.semi, color: COLOR.ok });
+          circleOk(statusX, mid);
+          page.drawText('OK', {
+            x: statusX + iconSlot,
+            y: baseline,
+            size: 9,
+            font: face.semi,
+            color: COLOR.ok,
+          });
         } else if (state === 'defect') {
-          triangle(M + 236, y - 12);
-          page.drawText('Mangel', { x: M + 248, y: y - 10, size: 9, font: face.semi, color: COLOR.defect });
-          page.drawText(mLabel, { x: M + 292, y: y - 10, size: 8.5, font: face.medium, color: COLOR.muted });
+          triangle(statusX + (iconSlot - 7.6) / 2, mid);
+          page.drawText('Mangel', {
+            x: statusX + iconSlot,
+            y: baseline,
+            size: 9,
+            font: face.semi,
+            color: COLOR.defect,
+          });
+          if (mLabel) {
+            const mangelW = face.semi.widthOfTextAtSize('Mangel', 9);
+            const tagX = statusX + iconSlot + mangelW + 4;
+            const tagW = face.medium.widthOfTextAtSize(mLabel, 8.5);
+            if (tagX + tagW <= detailX - 2) {
+              page.drawText(mLabel, {
+                x: tagX,
+                y: baseline,
+                size: 8.5,
+                font: face.medium,
+                color: COLOR.muted,
+              });
+            }
+          }
         } else if (state === 'na') {
-          page.drawText('–', { x: M + 248, y: y - 10, size: 9, font: face.regular, color: COLOR.muted });
+          page.drawText('–', { x: statusX, y: baseline, size: 9, font: face.regular, color: COLOR.muted });
           page.drawText('Nicht vorhanden', {
-            x: M + 262,
-            y: y - 10,
+            x: statusX + 12,
+            y: baseline,
             size: 9,
             font: face.regular,
             color: COLOR.muted,
           });
         } else {
-          page.drawText('offen', { x: M + 248, y: y - 10, size: 9, font: face.regular, color: COLOR.muted });
+          page.drawText('offen', {
+            x: statusX,
+            y: baseline,
+            size: 9,
+            font: face.regular,
+            color: COLOR.muted,
+          });
         }
-        if (detail && state !== 'na')
-          page.drawText(detail, { x: M + 340, y: y - 10, size: 8.5, font: face.regular, color: COLOR.muted });
+        if (detail && state !== 'na') {
+          page.drawText(detail, {
+            x: detailX,
+            y: baseline,
+            size: 8.5,
+            font: face.regular,
+            color: COLOR.muted,
+          });
+        }
         y -= lineCount * 14 + 2;
       },
     };
@@ -602,8 +707,14 @@ export async function generatePdf(
         y -= 8;
         page.drawText(String(roomNo), { x: M, y: y - 12, size: 10, font: face.semi, color: COLOR.muted });
         const label = safe(status);
-        const tw = face.semi.widthOfTextAtSize(label, 8) + (defectCount ? 28 : 24);
-        const chipX = M + width - tw;
+        const textSize = 8;
+        const tw = face.semi.widthOfTextAtSize(label, textSize);
+        const iconW = defectCount ? 7.6 : 8.4;
+        const gap = 4;
+        const pad = 6;
+        const chipW = pad + iconW + gap + tw + pad;
+        const chipH = 16;
+        const chipX = M + width - chipW;
         page.drawText(clip(room.label, face.jakarta, 12.5, chipX - (M + 18) - 8), {
           x: M + 18,
           y: y - 13,
@@ -611,17 +722,26 @@ export async function generatePdf(
           font: face.jakarta,
           color: COLOR.navy,
         });
-        const x = chipX;
-        const bottom = y - 16;
+        const bottom = y - chipH;
+        const mid = bottom + chipH / 2;
+        const baseline = mid - (PDF_X_HEIGHT * textSize) / 2;
+        const textX = chipX + pad + iconW + gap;
         if (defectCount) {
-          rounded(x, bottom, tw, 16, 8, { color: COLOR.warnBg });
-          triangle(x + 6, y - 13);
-          page.drawText(label, { x: x + 16, y: y - 11, size: 8, font: face.semi, color: COLOR.defect });
+          rounded(chipX, bottom, chipW, chipH, 8, { color: COLOR.warnBg });
+          triangle(chipX + pad, mid);
+          page.drawText(label, {
+            x: textX,
+            y: baseline,
+            size: textSize,
+            font: face.semi,
+            color: COLOR.defect,
+          });
         } else {
-          rounded(x, bottom, tw, 16, 8, { borderColor: COLOR.ok, borderWidth: 0.8 });
-          circleOk(x + 4, y - 14);
-          page.drawText(label, { x: x + 16, y: y - 11, size: 8, font: face.semi, color: COLOR.ok });
+          rounded(chipX, bottom, chipW, chipH, 8, { borderColor: COLOR.ok, borderWidth: 0.8 });
+          circleOk(chipX + pad, mid);
+          page.drawText(label, { x: textX, y: baseline, size: textSize, font: face.semi, color: COLOR.ok });
         }
+        markBox('chip', chipX, bottom + chipH, chipW, chipH);
         y -= 20;
       },
     };
@@ -716,7 +836,7 @@ export async function generatePdf(
       rowNo,
       CHECKS[checkId]?.label ?? checkId,
       'defect',
-      detailText(room, checkId) || '—',
+      detailText(room, checkId),
       info?.m ?? '',
     );
     const title = `${info?.m ?? ''} · ${CHECKS[checkId]?.label ?? checkId}`;
@@ -772,15 +892,24 @@ export async function generatePdf(
       else if (typeof value === 'number') present.push(`${label} ${value}`);
     }
     const bits: Ink[] = [];
-    const stock = (line: string, color: ReturnType<typeof rgb>) => {
+    const valueMax = M + width - nameX;
+    const stock = (label: string, values: string, color: ReturnType<typeof rgb>) => {
+      const lines = wrap(values, face.regular, 9.5, valueMax);
       bits.push({
-        height: textH(line, 8.5, face.regular, width - 8),
-        draw: () => paintText(line, 8.5, face.regular, color, M, 0, width - 8),
+        height: 12 + lines.length * 13.5,
+        draw() {
+          page.drawText(label, { x: nameX, y: y - 8.5, size: 8.5, font: face.medium, color: COLOR.muted });
+          y -= 12;
+          for (const line of lines) {
+            page.drawText(line, { x: nameX, y: y - 9.5, size: 9.5, font: face.regular, color });
+            y -= 13.5;
+          }
+        },
       });
     };
-    if (present.length) stock(`Vorhanden: ${present.join(', ')}`, COLOR.text);
-    if (absent.length) stock(`Nicht vorhanden: ${absent.join(', ')}`, COLOR.text);
-    if (p.status !== 'signed' && openItems.length) stock(`Offen: ${openItems.join(', ')}`, COLOR.muted);
+    if (present.length) stock('Vorhanden', present.join(', '), COLOR.text);
+    if (absent.length) stock('Nicht vorhanden', absent.join(', '), COLOR.text);
+    if (p.status !== 'signed' && openItems.length) stock('Offen', openItems.join(', '), COLOR.muted);
     if (room.note.trim()) {
       const s = `Notiz: ${room.note}`;
       bits.push({
@@ -821,7 +950,7 @@ export async function generatePdf(
           labels.push(CHECKS[nextId]?.label ?? nextId);
           j += 1;
         }
-        rows.push({ n: `${roomNo}.${n}`, checkId, label: labels.join(' · '), state: 'ok', details: '—' });
+        rows.push({ n: `${roomNo}.${n}`, checkId, label: labels.join(' · '), state: 'ok', details: '' });
         n += 1;
         i = j;
         continue;
@@ -831,7 +960,7 @@ export async function generatePdf(
         checkId,
         label: CHECKS[checkId]?.label ?? checkId,
         state,
-        details: state === 'na' ? '' : detailText(room, checkId) || '—',
+        details: state === 'na' ? '' : detailText(room, checkId),
       });
       n += 1;
       i += 1;
@@ -925,30 +1054,36 @@ export async function generatePdf(
     null,
   );
 
-  const landlordLines = [
-    p.landlord.name,
-    [p.landlord.email, p.landlord.phone].filter(Boolean).join(' · '),
-  ].filter(Boolean);
-  const tenant = p.tenants[0];
-  const tenantLines = tenant
-    ? [
-        tenant.name,
-        [tenant.noEmail ? 'E-Mail: keine angegeben' : tenant.email, tenant.phone].filter(Boolean).join(' · '),
-        p.type === 'abnahme' && tenant.newAddress.trim()
-          ? `Neue Adresse (nach Auszug): ${tenant.newAddress.trim()}`
-          : '',
-      ].filter(Boolean)
-    : [];
   const colW = width / 2 - 14;
-  const fold = (lines: string[]) =>
-    (lines.length ? lines : ['–']).flatMap((line) => wrap(line, face.regular, 10, colW));
-  const leftLines = fold(landlordLines);
-  const rightLines = fold(tenantLines);
-  const partyLines = Math.max(leftLines.length, rightLines.length, 1);
+  type PartyLine = { text: string; font: PDFFont };
+  const personLines = (
+    party: { name: string; phone: string; email: string; noEmail?: boolean; newAddress?: string },
+    showAddress: boolean,
+  ): PartyLine[] => {
+    const out: PartyLine[] = [];
+    const push = (value: string, font: PDFFont) => {
+      for (const text of wrap(value, font, 10, colW)) out.push({ text, font });
+    };
+    push(party.name.trim() || '–', face.semi);
+    if (party.phone.trim()) push(`Telefon ${party.phone.trim()}`, face.regular);
+    if (party.noEmail) push('E-Mail: keine angegeben', face.regular);
+    else if (party.email.trim()) push(`E-Mail ${party.email.trim()}`, face.regular);
+    if (showAddress && party.newAddress?.trim()) {
+      push(`Neue Adresse (nach Auszug): ${party.newAddress.trim()}`, face.regular);
+    }
+    return out;
+  };
+  const leftLines = personLines(p.landlord, false);
+  const rightLines = p.tenants.flatMap((party, index) => {
+    const lines = personLines(party, p.type === 'abnahme');
+    return index === 0 ? lines : [{ text: '', font: face.regular }, ...lines];
+  });
+  const partyCount = Math.max(leftLines.length, rightLines.length, 1);
+  const partyLineH = 13;
   await place(
     {
       id: 'section:parties',
-      height: 28 + 20 + partyLines * 13,
+      height: 28 + 14 + partyCount * partyLineH + 6,
       draw() {
         section('01', 'Beteiligte').draw();
         const top = y;
@@ -966,22 +1101,18 @@ export async function generatePdf(
           font: face.medium,
           color: COLOR.muted,
         });
-        let left = top - 22;
-        for (const line of leftLines) {
-          page.drawText(line, { x: M, y: left, size: 10, font: face.regular, color: COLOR.text });
-          left -= 13;
-        }
-        let right = top - 22;
-        for (const line of rightLines) {
-          page.drawText(line, {
-            x: M + width / 2,
-            y: right,
-            size: 10,
-            font: face.regular,
-            color: COLOR.text,
-          });
-          right -= 13;
-        }
+        const paint = (lines: PartyLine[], x: number) => {
+          let lineY = top - 22;
+          for (const line of lines) {
+            if (line.text) {
+              page.drawText(line.text, { x, y: lineY, size: 10, font: line.font, color: COLOR.text });
+            }
+            lineY -= partyLineH;
+          }
+          return lineY;
+        };
+        const left = paint(leftLines, M);
+        const right = paint(rightLines, M + width / 2);
         y = Math.min(left, right) - 4;
       },
     },
@@ -1206,26 +1337,21 @@ export async function generatePdf(
     const tail = planTail(room);
     const prefix: Piece[] = needRoomsHeading ? [{ id: 'section:rooms', ...section('04', 'Räume') }] : [];
     const headPiece: Piece = { id: `room-head:${room.id}`, ...head };
-    const whole = [...prefix, headPiece, ...pieces, { id: `room-tail:${room.id}`, ...tail }];
+    const tailPiece: Piece = { id: `room-tail:${room.id}`, ...tail };
+    const whole = [...prefix, headPiece, ...pieces, tailPiece];
     const sumH = (parts: Piece[]) => parts.reduce((sum, part) => sum + part.height, 0);
-    if (defectIds.length === 0 && sumH(whole) <= BUDGET) {
-      await placeTogether(whole, cont);
-      needRoomsHeading = false;
-      roomHasInk = false;
-      continue;
-    }
     const three = pieces.slice(0, Math.min(3, pieces.length));
-    const fixed = (needRoomsHeading ? 28 : 0) + head.height;
-    const first = pieces[0];
-    let opening: Piece[] = three;
+    let opening = [...prefix, headPiece, ...three];
     let rest = pieces.slice(three.length);
-    if (fixed + sumH(three) > BUDGET) {
+    if (sumH(opening) > BUDGET) {
+      const fixed = (needRoomsHeading ? 28 : 0) + head.height;
+      const first = pieces[0];
       if (first && fixed + first.height <= BUDGET) {
-        opening = [first];
+        opening = [...prefix, headPiece, first];
         rest = pieces.slice(1);
       } else if (first?.chunks?.[0] && fixed + first.chunks[0].height <= BUDGET) {
         const chunk = first.chunks[0];
-        opening = [{ id: first.id, height: chunk.height, draw: () => chunk.draw() }];
+        opening = [...prefix, headPiece, { id: first.id, height: chunk.height, draw: () => chunk.draw() }];
         rest = [
           ...first.chunks
             .slice(1)
@@ -1233,40 +1359,46 @@ export async function generatePdf(
           ...pieces.slice(1),
         ];
       } else {
-        opening = [];
+        opening = [...prefix, headPiece];
         rest = pieces;
       }
     }
-    await placeTogether([...prefix, headPiece, ...opening], cont);
+    if (sumH(whole) <= remaining()) {
+      await placeTogether(whole, cont);
+    } else {
+      if (sumH(opening) > remaining() + 0.5) openPage(null);
+      await placeTogether(opening, cont);
+      roomHasInk = true;
+      for (const piece of rest) await place(piece, cont);
+      await place(tailPiece, cont);
+    }
     needRoomsHeading = false;
-    for (const piece of rest) await place(piece, cont);
-    await place({ id: `room-tail:${room.id}`, ...tail }, cont);
     roomHasInk = false;
   }
 
+  const meterCols: Array<{ label: string; w: number; right: boolean; pad: number }> = [
+    { label: 'Zähler', w: 90, right: false, pad: 0 },
+    { label: 'Zählernummer', w: 110, right: false, pad: 0 },
+    { label: 'Stand', w: 80, right: true, pad: 16 },
+    { label: 'Einheit', w: 40, right: false, pad: 0 },
+    { label: 'Ort', w: width - 90 - 110 - 80 - 40 - 36, right: false, pad: 0 },
+    { label: 'Abb.', w: 36, right: true, pad: 2 },
+  ];
   const meterHeader: Ink = {
     height: 16,
     draw() {
-      const heads = [
-        ['Zähler', 110, false],
-        ['Zählernummer', 120, false],
-        ['Stand', 72, true],
-        ['Einheit', 52, false],
-        ['Ort', 80, false],
-      ] as const;
       let x = M;
-      for (const [label, col, right] of heads) {
-        const tw = face.medium.widthOfTextAtSize(label, 8);
-        page.drawText(label, {
-          x: right ? x + col - tw - 10 : x,
+      for (const col of meterCols) {
+        const tw = face.medium.widthOfTextAtSize(col.label, 8);
+        page.drawText(col.label, {
+          x: col.right ? x + col.w - tw - col.pad : x + col.pad,
           y: y - 8,
           size: 8,
           font: face.medium,
           color: COLOR.muted,
         });
-        x += col;
+        x += col.w;
       }
-      page.drawText('Abb.', { x: M + width - 24, y: y - 8, size: 8, font: face.medium, color: COLOR.muted });
       rule(y - 12);
       y -= 16;
     },
@@ -1301,30 +1433,23 @@ export async function generatePdf(
           reading,
           METER_LABEL[meter.kind].unit,
           meter.location || '–',
+          nums.length ? String(nums[0]) : '–',
         ];
-        const meterCols = [110, 120, 72, 52, 80];
         let x = M;
-        cells.forEach((cell, i) => {
-          const col = meterCols[i] ?? 40;
+        for (const [i, cell] of cells.entries()) {
+          const col = meterCols[i];
+          if (!col) continue;
           const text = safe(cell);
           const tw = face.regular.widthOfTextAtSize(text, 9);
-          const pad = i === 2 ? 10 : i === 3 ? 4 : 0;
           page.drawText(text, {
-            x: i === 2 ? x + col - tw - pad : x + pad,
+            x: col.right ? x + col.w - tw - col.pad : x + col.pad,
             y: y - 11,
             size: 9,
             font: face.regular,
             color: COLOR.text,
           });
-          x += col;
-        });
-        page.drawText(nums.length ? String(nums[0]) : '–', {
-          x: M + width - 20,
-          y: y - 11,
-          size: 9,
-          font: face.regular,
-          color: COLOR.text,
-        });
+          x += col.w;
+        }
         rule(y - 16);
         y -= 18;
         for (let i = 0; i < imgs.length; i += 2) {
@@ -1333,47 +1458,47 @@ export async function generatePdf(
       },
     });
   }
-  const meterConfirm =
-    'Der Mieter bestätigt, dass er die Zählerstände gemeinsam mit dem Verwalter/Vermieter abgelesen hat.';
+  const meterConfirm = p.meters.length
+    ? 'Die Mieterseite bestätigt, dass sie die Zählerstände gemeinsam mit dem Verwalter/Vermieter abgelesen hat.'
+    : '';
+  const meterNote: Ink[] = meterConfirm
+    ? [
+        {
+          height: textH(meterConfirm, 8.5, face.regular, width, 4),
+          draw: () => paintText(meterConfirm, 8.5, face.regular, COLOR.muted, M, 4, width),
+        },
+      ]
+    : [];
   await place(
     {
       id: 'section:meters',
       height:
         28 +
         meterInks.reduce((sum, ink) => sum + ink.height, 0) +
-        textH(meterConfirm, 8.5, face.regular, width, 4),
-      chunks: [
-        section('05', 'Zählerstände'),
-        ...meterInks,
-        {
-          height: textH(meterConfirm, 8.5, face.regular, width, 4),
-          draw: () => paintText(meterConfirm, 8.5, face.regular, COLOR.muted, M, 4, width),
-        },
-      ],
+        meterNote.reduce((sum, ink) => sum + ink.height, 0),
+      chunks: [section('05', 'Zählerstände'), ...meterInks, ...meterNote],
       draw() {
         section('05', 'Zählerstände').draw();
         for (const ink of meterInks) ink.draw();
-        paintText(meterConfirm, 8.5, face.regular, COLOR.muted, M, 4, width);
+        for (const ink of meterNote) ink.draw();
       },
     },
     null,
   );
 
   const keyConfirm =
-    'Der Mieter bestätigt, dass sich außer den hier festgehaltenen Schlüsseln keine weiteren Schlüssel in seinem Besitz befinden oder befanden.';
+    'Die Mieterseite bestätigt, dass sich außer den hier festgehaltenen Schlüsseln keine weiteren Schlüssel in ihrem Besitz befinden oder befanden.';
+  const countRight = M + 220;
+  const drawCount = (value: string, font: PDFFont) => {
+    const tw = font.widthOfTextAtSize(value, 9);
+    page.drawText(value, { x: countRight - tw, y: y - 10, size: 9, font, color: COLOR.text });
+  };
   const keyRows: Ink[] = p.keys.map((key) => ({
     height: 16,
     draw() {
       const label = key.kind === 'other' ? key.label || 'Sonstiger' : KEY_LABEL[key.kind];
       page.drawText(safe(label), { x: M, y: y - 10, size: 9, font: face.regular, color: COLOR.text });
-      page.drawText(String(key.count), {
-        x: M + 180,
-        y: y - 10,
-        size: 9,
-        font: face.regular,
-        color: COLOR.text,
-      });
-      page.drawText('—', { x: M + 250, y: y - 10, size: 9, font: face.regular, color: COLOR.muted });
+      drawCount(String(key.count), face.regular);
       rule(y - 14);
       y -= 16;
     },
@@ -1381,14 +1506,8 @@ export async function generatePdf(
   keyRows.push({
     height: 16,
     draw() {
-      page.drawText('Es fehlen', { x: M, y: y - 10, size: 9, font: face.semi, color: COLOR.text });
-      page.drawText(String(missingKeys), {
-        x: M + 180,
-        y: y - 10,
-        size: 9,
-        font: face.semi,
-        color: COLOR.text,
-      });
+      page.drawText('Fehlende Schlüssel', { x: M, y: y - 10, size: 9, font: face.semi, color: COLOR.text });
+      drawCount(String(missingKeys), face.semi);
       y -= 16;
     },
   });
@@ -1402,13 +1521,17 @@ export async function generatePdf(
         textH(keyConfirm, 8.5, face.regular, width, 4),
       draw() {
         section('06', 'Schlüssel').draw();
-        for (const [label, x] of [
-          ['Schlüssel', M],
-          ['Übergeben', M + 180],
-          ['Bemerkung', M + 250],
-        ] as const) {
-          page.drawText(label, { x, y: y - 8, size: 8, font: face.medium, color: COLOR.muted });
-        }
+        page.drawText('Schlüssel', { x: M, y: y - 8, size: 8, font: face.medium, color: COLOR.muted });
+        const given = 'Übergeben';
+        const givenW = face.medium.widthOfTextAtSize(given, 8);
+        page.drawText(given, {
+          x: countRight - givenW,
+          y: y - 8,
+          size: 8,
+          font: face.medium,
+          color: COLOR.muted,
+        });
+        page.drawText('Bemerkung', { x: M + 250, y: y - 8, size: 8, font: face.medium, color: COLOR.muted });
         rule(y - 12);
         y -= 16;
         for (const row of keyRows) row.draw();

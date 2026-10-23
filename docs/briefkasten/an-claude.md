@@ -2,6 +2,13 @@
 
 <!-- Neue Einträge oben. Format: ## TT.MM. · SM-xx · Bahn X · Kurztitel -->
 
+## 23.10. · SM-20d · Bahn C · PDF-Feinschliff
+
+Prompt-ID: SM-20d. Nachtrag zu D37/D38, keine neue D-Nummer. Nur `frontend/src/pdf/*` und `tests/pdf.test.ts`.
+Symbole (Haken, Dreieck) sitzen auf der x-Höhe der Zeile, in den Chips mit gleichem Innenabstand. Gebündelte Zeilen brechen nach „·“. Leere Details bleiben leer. Ausstattung eingerückt: Label grau 8,5 pt, Werte normal. Beteiligte je Zeile Name, Telefon, E-Mail, neue Adresse. Schlüsselzahlen rechtsbündig, „Fehlende Schlüssel“. Zählerstand rechtsbündig, 16 pt vor der Einheit. Ein Raum darf am Seitenende anfangen, wenn Kopf und drei Zeilen passen; Fortsetzung „Raum (Fortsetzung)“. Mängel bleiben unteilbar. Bestätigung „Die Mieterseite bestätigt …“, Zähler-Satz nur bei mindestens einem Zähler.
+Ergebnis: `tests/pdf.test.ts` grün (10), Biome der PDF-Dateien grün. Render Entwurf und unterschrieben unter `frontend/test-results/sm20d/` (gitignored).
+Offen: keine.
+
 ## 23.10. · SM-22 · Bahn A + B · Feinschliff Live-Review
 
 Prompt-ID: SM-22. Nicht angefasst: Start, Navigation, Basis, PWA (SM-09). Entscheidungen D55–D57 (D48–D54 bleiben SM-09).

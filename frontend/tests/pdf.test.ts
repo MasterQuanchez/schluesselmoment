@@ -9,9 +9,16 @@ import { PDFDict, PDFDocument, PDFName, PDFRawStream } from 'pdf-lib';
 import { chromium } from 'playwright';
 import { describe, expect, it, vi } from 'vitest';
 import { createDemoProtocol } from '@/domain/demo';
-import { completeRoom, confirmAllChecks, createProtocol, setCheck, updateDefect } from '@/domain/protocol';
+import {
+  completeRoom,
+  confirmAllChecks,
+  createProtocol,
+  setCheck,
+  setDetail,
+  updateDefect,
+} from '@/domain/protocol';
 import type { Protocol, Room } from '@/domain/schema';
-import { generatePdf, type PdfLayoutMark, pdfFileName } from '@/pdf/generate';
+import { generatePdf, PDF_X_HEIGHT, type PdfLayoutMark, pdfFileName } from '@/pdf/generate';
 
 function namedTenant(p: Protocol, name: string, phone: string, email: string): Protocol['tenants'][number] {
   const tenant = p.tenants[0];
@@ -325,7 +332,7 @@ describe('PDF', () => {
         };
       }),
     };
-    const dir = new URL('../test-results/sm20c/', import.meta.url);
+    const dir = new URL('../test-results/sm20d/', import.meta.url);
     const draftDir = new URL('entwurf/', dir);
     const signedDir = new URL('unterschrieben/', dir);
     mkdirSync(draftDir, { recursive: true });
@@ -337,15 +344,16 @@ describe('PDF', () => {
     writeFileSync(draftPath, draftBytes);
     const draftText = await renderPages(draftPath, draftDir, draftDoc.getPageCount());
     assertNoTextOverlap(draftLayout);
-    expectKpi(draftText, '7', 'Räume geprüft');
+    expectKpi(draftText, String(p.rooms.length), 'Räume geprüft');
     expectKpi(draftText, '3', 'Mängel');
     expectKpi(draftText, '3', 'Schlüssel übergeben');
     expect(draftText).toContain('E-Mail: keine angegeben');
     expect(draftText).toContain('Neue Adresse (nach Auszug):');
-    expect(draftText).toContain('Vorhanden:');
+    expect(draftText).toContain('Vorhanden');
     expect(draftText).toContain('Backblech 2');
-    expect(draftText).toContain('Nicht vorhanden: Kühlschrank');
-    expect(draftText).toContain('Offen:');
+    expect(draftText).toContain('Nicht vorhanden');
+    expect(draftText).toContain('Kühlschrank');
+    expect(draftText).toContain('Offen');
     expect(draftText).toMatch(/Lichter\s+–\s+Nicht vorhanden/);
 
     const signedAt = '2026-10-23T15:04:00.000Z';
@@ -396,6 +404,123 @@ describe('PDF', () => {
     mkdirSync(dir, { recursive: true });
     writeFileSync(new URL('zehn-fotos.pdf', dir), bytes);
     writeFileSync(new URL('zehn-fotos-bytes.txt', dir), `${bytes.byteLength}\n`);
+  }, 60_000);
+
+  it('zentriert Symbole, hält Trenner, Personen, Umbruch und Bestätigung', async () => {
+    let p = createProtocol('abnahme', new Date('2026-10-23T10:00:00Z'));
+    const tenant = namedTenant(p, 'Anna Muster', '0711 123', 'anna@example.org');
+    p = {
+      ...p,
+      landlord: {
+        ...p.landlord,
+        name: 'Hausverwaltung Beispiel',
+        phone: '0711 000',
+        email: 'verwaltung@example.org',
+      },
+      tenants: [{ ...tenant, newAddress: 'Beispielweg 4, 70174 Stuttgart' }],
+      meters: [
+        { id: 'm1', kind: 'electricity', number: 'E-100', reading: '4567', location: 'Flur', photoIds: [] },
+      ],
+      rooms: p.rooms.map((room, index) => {
+        const all = confirmAllChecks(room);
+        if (index === 0) return { ...all, note: 'Hinweis zum Raum. '.repeat(28) };
+        if (index !== 1) return all;
+        let next = all;
+        for (const checkId of Object.keys(room.checks)) next = setDetail(next, checkId, 'probe', 'ja');
+        return next;
+      }),
+    };
+    const layout: PdfLayoutMark[] = [];
+    await generatePdf(p, async () => null, layout, { fonts: true });
+    const runs = layout.filter((mark) => mark.block === 'run');
+    const textMid = (mark: PdfLayoutMark) => mark.y + (PDF_X_HEIGHT * mark.height) / 2;
+
+    for (const sym of layout.filter((mark) => mark.block === 'symbol')) {
+      const mid = sym.y - sym.height / 2;
+      const gap = runs
+        .filter((run) => run.page === sym.page && (run.x ?? 0) >= (sym.x ?? 0) - 0.5)
+        .reduce((best, run) => Math.min(best, Math.abs(textMid(run) - mid)), Number.POSITIVE_INFINITY);
+      expect(gap).toBeLessThanOrEqual(0.5);
+    }
+
+    for (const chip of layout.filter((mark) => mark.block === 'chip')) {
+      const sym = layout.find(
+        (mark) =>
+          mark.block === 'symbol' &&
+          mark.page === chip.page &&
+          (mark.x ?? 0) >= (chip.x ?? 0) &&
+          (mark.x ?? 0) <= (chip.x ?? 0) + (chip.width ?? 0),
+      );
+      const mid = sym ? sym.y - sym.height / 2 : 0;
+      const label = runs.find(
+        (run) =>
+          run.page === chip.page && Math.abs(textMid(run) - mid) <= 0.5 && (run.x ?? 0) > (sym?.x ?? 0),
+      );
+      expect(sym && label).toBeTruthy();
+      const left = (sym?.x ?? 0) - (chip.x ?? 0);
+      const right = (chip.x ?? 0) + (chip.width ?? 0) - ((label?.x ?? 0) + (label?.width ?? 0));
+      expect(Math.abs(left - right)).toBeLessThanOrEqual(0.5);
+      expect(left).toBeGreaterThan(2);
+      expect(right).toBeGreaterThan(2);
+    }
+
+    const leading = runs.filter((run) => {
+      if (!run.text?.trimStart().startsWith('·')) return false;
+      const row = runs.filter((other) => other.page === run.page && Math.abs(other.y - run.y) < 0.5);
+      const minX = Math.min(...row.map((other) => other.x ?? 0));
+      return (run.x ?? 0) <= minX + 0.5;
+    });
+    expect(leading.map((run) => run.text)).toEqual([]);
+    expect(runs.some((run) => run.text?.trimEnd().endsWith('·'))).toBe(true);
+
+    const name = runs.find((run) => run.text === 'Anna Muster');
+    const phone = runs.find((run) => run.text === 'Telefon 0711 123');
+    const mail = runs.find((run) => run.text === 'E-Mail anna@example.org');
+    const address = runs.find((run) => run.text?.startsWith('Neue Adresse (nach Auszug):'));
+    expect(name && phone && mail && address).toBeTruthy();
+    expect(phone?.y).toBeLessThan(name?.y ?? 0);
+    expect(mail?.y).toBeLessThan(phone?.y ?? 0);
+    expect(address?.y).toBeLessThan(mail?.y ?? 0);
+
+    const stand = runs.find((run) => run.text === '4.567,0');
+    const unit = runs.find((run) => run.text === 'kWh' && run.page === stand?.page);
+    expect(stand && unit).toBeTruthy();
+    expect(Math.abs((unit?.x ?? 0) - ((stand?.x ?? 0) + (stand?.width ?? 0) + 16))).toBeLessThanOrEqual(0.6);
+
+    const continued = layout
+      .filter((mark) => mark.block.startsWith('room-head:'))
+      .find((head) => {
+        const id = head.block.slice('room-head:'.length);
+        const cont = layout.find((mark) => mark.block === `continuation:${id}`);
+        const startedMidPage = layout.some(
+          (mark) => mark.page === head.page && mark !== head && mark.y > head.y && mark.block !== 'run',
+        );
+        const kept = layout.some((mark) => mark.page === head.page && mark.block.startsWith(`check:${id}:`));
+        return Boolean(cont && cont.page > head.page && startedMidPage && kept);
+      });
+    expect(continued).toBeTruthy();
+
+    const defects = layout.filter((mark) => mark.block.startsWith('defect:'));
+    for (const id of new Set(defects.map((mark) => mark.block))) {
+      const pages = new Set(defects.filter((mark) => mark.block === id).map((mark) => mark.page));
+      expect(pages.size).toBe(1);
+    }
+
+    expect(
+      runs.some(
+        (run) => run.text?.includes('Die Mieterseite bestätigt') && run.text.includes('Zählerstände'),
+      ),
+    ).toBe(true);
+    expect(
+      runs.some((run) => run.text?.includes('Die Mieterseite bestätigt') && run.text.includes('Schlüsseln')),
+    ).toBe(true);
+    expect(runs.some((run) => run.text?.startsWith('Der Mieter bestätigt'))).toBe(false);
+
+    const bareLayout: PdfLayoutMark[] = [];
+    await generatePdf({ ...p, meters: [] }, async () => null, bareLayout);
+    const bare = bareLayout.filter((mark) => mark.block === 'run');
+    expect(bare.some((run) => run.text?.includes('Zählerstände gemeinsam'))).toBe(false);
+    expect(bare.some((run) => run.text?.includes('Schlüsseln'))).toBe(true);
   }, 60_000);
 });
 
