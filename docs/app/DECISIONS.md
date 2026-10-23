@@ -51,6 +51,7 @@
 | D56 | 23.10.2026 | Offene Chips sind neutral (gestrichelter grauer Rand). Orange nur, wenn OK oder Mangel und Angaben fehlen. | Offen ist der Normalzustand. Orange soll nur auf eine Lücke hinweisen. | Entschieden |
 | D57 | 23.10.2026 | Der Abschluss heißt „Abschließen“. Die Erfolgsbox zeigt „Protokoll abgeschlossen“ und die kurze Prüfsumme. „Übernehmen“ erst ab 150 px Strich. | Dieselbe Sprache wie im PDF. Ein Punkt ist keine Unterschrift. | Entschieden |
 | D58 | 23.10.2026 | PDF-Layout „Klar“ (ersetzt D38-Layout) | Eine Kennzahlenzeile, Abschnitte mit Icon ohne Nummern, Merkmale vollständig, Fotos nur im Anhang. Anmerkungen mit Schreiblinien stehen vor den Unterschriften und zählen nicht zur Prüfsumme. Löst die Foto-Stelle aus D28 ab. | Entschieden |
+| D59 | 24.10.2026 | Protokolldaten als JSON-Anlage im PDF (Vergleich) | Jedes PDF enthält schluesselmoment-protokoll.json: das Protokoll ohne Fotos, Foto-Hashes und die Prüfsumme. Die App liest die Anlage und lehnt eine neuere Version ab, statt zu raten. | Entschieden |
 
 D19/D20 bewusst nicht vergeben (SM-01).
 

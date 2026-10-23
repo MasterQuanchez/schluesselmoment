@@ -15,10 +15,19 @@ import {
   createProtocol,
   setCheck,
   setDetail,
+  sha256Hex,
   updateDefect,
 } from '@/domain/protocol';
 import type { Protocol, Room } from '@/domain/schema';
+import { SCHEMA_VERSION } from '@/domain/schema';
 import { generatePdf, type PdfLayoutMark, pdfFileName, roomIconKey } from '@/pdf/generate';
+import {
+  PDF_PROTOCOL_DAMAGED,
+  PDF_PROTOCOL_MISSING,
+  PDF_PROTOCOL_NEWER,
+  PROTOCOL_FILE,
+  readEmbeddedProtocol,
+} from '@/pdf/protocolFile';
 
 function namedTenant(p: Protocol, name: string, phone: string, email: string): Protocol['tenants'][number] {
   const tenant = p.tenants[0];
@@ -337,7 +346,7 @@ describe('PDF', () => {
         };
       }),
     };
-    const dir = new URL('../test-results/sm27/', import.meta.url);
+    const dir = new URL('../test-results/sm28/', import.meta.url);
     const draftDir = new URL('entwurf/', dir);
     const signedDir = new URL('unterschrieben/', dir);
     mkdirSync(draftDir, { recursive: true });
@@ -494,6 +503,19 @@ describe('PDF', () => {
 
     const earlier = (a: PdfLayoutMark, b: PdfLayoutMark) =>
       a.page < b.page || (a.page === b.page && a.y > b.y);
+    const object = layout.find((mark) => mark.block === 'section:object');
+    const parties = layout.find((mark) => mark.block === 'section:parties');
+    const overview = layout.find((mark) => mark.block === 'section:overview');
+    const rooms = layout.find((mark) => mark.block === 'section:rooms');
+    expect(object?.page).toBe(1);
+    expect(parties?.page).toBe(1);
+    expect(overview?.page).toBe(1);
+    expect(rooms?.page).toBe(2);
+    if (object && parties && overview) {
+      expect(earlier(object, parties)).toBe(true);
+      expect(earlier(parties, overview)).toBe(true);
+    }
+
     const notes = layout.filter((mark) => mark.block === 'section:notes');
     const signatures = layout.find((mark) => mark.block === 'signatures');
     expect(notes).toHaveLength(1);
@@ -537,6 +559,148 @@ describe('PDF', () => {
       .join(' ');
     expect(bare).not.toContain('Zählerstände gemeinsam');
     expect(bare).toContain('Schlüsseln');
+  }, 60_000);
+
+  it('bettet das Protokoll ein und liest es wieder', async () => {
+    const jpeg = Uint8Array.from(Buffer.from(HOCH.join(''), 'base64'));
+    let p = createProtocol('abnahme', new Date('2026-10-23T10:00:00Z'));
+    p = {
+      ...p,
+      rooms: p.rooms.map((room) => {
+        if (room.id !== 'kitchen') return confirmAllChecks(room);
+        return updateDefect(setCheck(confirmAllChecks(room), 'walls', 'defect'), 'walls', {
+          description: 'Dübellöcher',
+          photoIds: ['wand'],
+        });
+      }),
+    };
+    const bytes = await generatePdf(p, async (id) => (id === 'wand' ? jpeg : null));
+    const read = await readEmbeddedProtocol(bytes);
+    expect(read.ok).toBe(true);
+    if (!read.ok) return;
+    expect(read.protocol).toEqual(p);
+    expect(read.sealHash).toBeNull();
+    expect(read.photoHashes.wand).toBe(await sha256Hex(jpeg));
+    expect(JSON.stringify(read.protocol)).not.toContain('blob');
+
+    const empty = await PDFDocument.create();
+    empty.addPage();
+    expect(await readEmbeddedProtocol(await empty.save())).toEqual({
+      ok: false,
+      error: PDF_PROTOCOL_MISSING,
+    });
+
+    const foreign = await PDFDocument.create();
+    foreign.addPage();
+    await foreign.attach(new TextEncoder().encode('hallo'), 'fremd.txt', { mimeType: 'text/plain' });
+    expect(await readEmbeddedProtocol(await foreign.save())).toEqual({
+      ok: false,
+      error: PDF_PROTOCOL_MISSING,
+    });
+
+    const broken = await PDFDocument.create();
+    broken.addPage();
+    await broken.attach(new TextEncoder().encode('{'), PROTOCOL_FILE, { mimeType: 'application/json' });
+    expect(await readEmbeddedProtocol(await broken.save())).toEqual({
+      ok: false,
+      error: PDF_PROTOCOL_DAMAGED,
+    });
+
+    const other = await PDFDocument.create();
+    other.addPage();
+    await other.attach(new TextEncoder().encode(JSON.stringify({ format: 'other/1' })), PROTOCOL_FILE, {
+      mimeType: 'application/json',
+    });
+    expect(await readEmbeddedProtocol(await other.save())).toEqual({
+      ok: false,
+      error: PDF_PROTOCOL_MISSING,
+    });
+
+    const newer = await PDFDocument.create();
+    newer.addPage();
+    await newer.attach(
+      new TextEncoder().encode(
+        JSON.stringify({
+          format: 'schluesselmoment/1',
+          schemaVersion: SCHEMA_VERSION + 1,
+          protocol: { schemaVersion: SCHEMA_VERSION + 1 },
+          photoHashes: {},
+          sealHash: null,
+        }),
+      ),
+      PROTOCOL_FILE,
+      { mimeType: 'application/json' },
+    );
+    expect(await readEmbeddedProtocol(await newer.save())).toEqual({
+      ok: false,
+      error: PDF_PROTOCOL_NEWER,
+    });
+
+    const raw = JSON.parse(JSON.stringify(p)) as {
+      schemaVersion: number;
+      features: { namedRooms?: unknown };
+    };
+    raw.schemaVersion = 3;
+    delete raw.features.namedRooms;
+    const aged = await PDFDocument.create();
+    aged.addPage();
+    await aged.attach(
+      new TextEncoder().encode(
+        JSON.stringify({
+          format: 'schluesselmoment/1',
+          schemaVersion: 3,
+          protocol: raw,
+          photoHashes: {},
+          sealHash: null,
+        }),
+      ),
+      PROTOCOL_FILE,
+      { mimeType: 'application/json' },
+    );
+    const migrated = await readEmbeddedProtocol(await aged.save());
+    expect(migrated.ok).toBe(true);
+    if (!migrated.ok) return;
+    expect(migrated.protocol).toEqual(p);
+    expect(migrated.protocol.schemaVersion).toBe(SCHEMA_VERSION);
+  }, 60_000);
+
+  it('setzt eine zu lange Mängelliste vor den Räumen fort', async () => {
+    let p = createProtocol('abnahme', new Date('2026-10-23T10:00:00Z'));
+    p = {
+      ...p,
+      rooms: p.rooms.map((room) => {
+        const done = confirmAllChecks(room);
+        if (room.id !== 'kitchen') return done;
+        const checks = { ...done.checks };
+        const defects = { ...done.defects };
+        for (let index = 0; index < 40; index += 1) {
+          const id = `extra-${index}`;
+          checks[id] = 'defect';
+          defects[id] = {
+            description: `Mangel ${index} an der Wand`,
+            photoIds: [],
+            quantity: null,
+            unit: null,
+            unitPriceCents: null,
+          };
+        }
+        return { ...done, checks, defects };
+      }),
+    };
+    const layout: PdfLayoutMark[] = [];
+    await generatePdf(p, async () => null, layout);
+    const earlier = (a: PdfLayoutMark, b: PdfLayoutMark) =>
+      a.page < b.page || (a.page === b.page && a.y > b.y);
+    const overview = layout.find((mark) => mark.block === 'section:overview');
+    const continued = layout.find((mark) => mark.block === 'continuation:overview');
+    const rooms = layout.find((mark) => mark.block === 'section:rooms');
+    expect(overview?.page).toBe(1);
+    expect(continued?.page).toBe(2);
+    expect(continued?.text).toBe('Mängel (Fortsetzung)');
+    expect(rooms && continued && earlier(continued, rooms)).toBe(true);
+    expect(layout.some((mark) => mark.block === 'section:rooms' && mark.page === 1)).toBe(false);
+    expect(layout.some((mark) => mark.block === 'section:object' && mark.page === 1)).toBe(true);
+    expect(layout.some((mark) => mark.block === 'section:parties' && mark.page === 1)).toBe(true);
   }, 60_000);
 });
 

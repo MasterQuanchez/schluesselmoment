@@ -5,6 +5,7 @@
  */
 import fontkit from '@pdf-lib/fontkit';
 import {
+  AFRelationship,
   degrees,
   LineCapStyle,
   PDFDocument,
@@ -17,6 +18,7 @@ import {
 import { CHECKS, INVENTORY, KEY_LABEL, METER_LABEL } from '@/domain/catalog';
 import { requiredSigners, signatureFor } from '@/domain/protocol';
 import type { Protocol, Room } from '@/domain/schema';
+import { encodeProtocolFile, PROTOCOL_FILE, photoHashesOf } from '@/pdf/protocolFile';
 
 export type PhotoLoader = (id: string) => Promise<Uint8Array | null>;
 
@@ -114,8 +116,8 @@ const ROOM_SVG: Record<string, string> = {
 const SECTION_SVG = {
   Mängel:
     '<path d="M12 3l9.5 17H2.5z"/><path d="M12 10v4"/><circle cx="12" cy="17" r=".6" fill="currentColor"/>',
-  'Objekt und Beteiligte':
-    '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><circle cx="12" cy="13" r="2"/><path d="M8.5 20a3.5 3.5 0 0 1 7 0"/>',
+  Objekt: '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>',
+  Beteiligte: '<circle cx="12" cy="13" r="2"/><path d="M8.5 20a3.5 3.5 0 0 1 7 0"/>',
   Räume: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 12h9V3M12 12v9"/>',
   Zählerstände: '<path d="M4 15a8 8 0 1 1 16 0"/><path d="M12 15l4-5"/><path d="M3 19h18"/>',
   Schlüssel: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9"/><path d="M16 7l3 3M14 9l2 2"/>',
@@ -765,6 +767,24 @@ export async function generatePdf(
     }
   };
 
+  const placeOverview = async (pieces: Piece[]) => {
+    let started = false;
+    for (const piece of pieces) {
+      if (piece.height + (started ? SECTION_H : 0) > remaining()) {
+        openPage(null);
+        if (started) {
+          const y0 = y;
+          drawSection('Mängel (Fortsetzung)', SECTION_SVG.Mängel);
+          note('continuation:overview', y0, y0 - y, 'Mängel (Fortsetzung)');
+        }
+      }
+      const y0 = y;
+      await piece.draw();
+      note(piece.id, y0, y0 - y);
+      started = true;
+    }
+  };
+
   const cache = new Map<string, Promise<PDFImage | null>>();
   const loadImg = (id: string) => {
     let pending = cache.get(id);
@@ -1156,18 +1176,6 @@ export async function generatePdf(
       draw: () => row.draw(),
     })),
   ];
-  await place(
-    {
-      id: 'section:overview',
-      height: overviewPieces.reduce((sum, piece) => sum + piece.height, 0),
-      chunks: overviewPieces,
-      draw: async () => {
-        for (const piece of overviewPieces) await piece.draw();
-      },
-    },
-    null,
-  );
-
   const outdoorLabel: Record<string, string> = {
     balcony: 'Balkon',
     terrace: 'Terrasse',
@@ -1212,30 +1220,20 @@ export async function generatePdf(
     return lines;
   };
 
-  const leftW = (width - 14) / 2;
   const kvLabelW = 78;
-  const kvValueW = leftW - kvLabelW;
+  const kvValueW = width - kvLabelW;
   const leftRows = facts.map((fact) => ({
     ...fact,
     lines: wrap(fact.value, face.regular, 9, kvValueW),
   }));
   const leftH = leftRows.reduce((sum, row) => sum + Math.max(14, row.lines.length * 12), 0);
-  const personW = (leftW - 10) / 2;
-  const leftParty = partyLines(p.landlord, false, personW);
-  const rightParty = p.tenants.flatMap((party, index) => {
-    const lines = partyLines(party, p.type === 'abnahme', personW);
-    return index === 0 ? lines : [{ text: '', font: face.regular }, ...lines];
-  });
-  const partyH = 14 + Math.max(leftParty.length, rightParty.length, 1) * 12;
-  const objectH = SECTION_H + Math.max(leftH, partyH) + 8;
   await place(
     {
       id: 'section:object',
-      height: objectH,
+      height: SECTION_H + leftH + 8,
       draw() {
-        drawSection('Objekt und Beteiligte', SECTION_SVG['Objekt und Beteiligte']);
-        const top = y;
-        let ly = top;
+        drawSection('Objekt', SECTION_SVG.Objekt);
+        let ly = y;
         for (const row of leftRows) {
           page.drawText(row.label, { x: M, y: ly - 9, size: 8, font: face.medium, color: COLOR.muted });
           for (const [index, line] of row.lines.entries()) {
@@ -1249,16 +1247,35 @@ export async function generatePdf(
           }
           ly -= Math.max(14, row.lines.length * 12);
         }
-        const rx = M + leftW + 14;
+        y = ly - 8;
+      },
+    },
+    null,
+  );
+
+  const personW = (width - 16) / 2;
+  const leftParty = partyLines(p.landlord, false, personW);
+  const rightParty = p.tenants.flatMap((party, index) => {
+    const lines = partyLines(party, p.type === 'abnahme', personW);
+    return index === 0 ? lines : [{ text: '', font: face.regular }, ...lines];
+  });
+  const partyLinesH = Math.max(leftParty.length, rightParty.length, 1) * 12;
+  await place(
+    {
+      id: 'section:parties',
+      height: SECTION_H + 22 + partyLinesH + 8,
+      draw() {
+        drawSection('Beteiligte', SECTION_SVG.Beteiligte);
+        const top = y;
         page.drawText('Vermieter / Verwaltung', {
-          x: rx,
+          x: M,
           y: top - 8,
           size: 8,
           font: face.medium,
           color: COLOR.muted,
         });
         page.drawText('Mieterin / Mieter', {
-          x: rx + personW + 10,
+          x: M + personW + 16,
           y: top - 8,
           size: 8,
           font: face.medium,
@@ -1273,13 +1290,16 @@ export async function generatePdf(
           }
           return py;
         };
-        const endL = paintParty(leftParty, rx);
-        const endR = paintParty(rightParty, rx + personW + 10);
-        y = Math.min(ly, endL, endR) - 8;
+        const endL = paintParty(leftParty, M);
+        const endR = paintParty(rightParty, M + personW + 16);
+        y = Math.min(endL, endR) - 8;
       },
     },
     null,
   );
+
+  await placeOverview(overviewPieces);
+  if (pageNo < 2) openPage(null);
 
   let needRoomsHeading = true;
   for (const room of p.rooms) {
@@ -1745,5 +1765,11 @@ export async function generatePdf(
     page = saved;
   }
 
+  const photoHashes = await photoHashesOf(p, loadPhoto);
+  await doc.attach(encodeProtocolFile(p, photoHashes), PROTOCOL_FILE, {
+    mimeType: 'application/json',
+    description: 'Schlüsselmoment-Protokolldaten',
+    afRelationship: AFRelationship.Data,
+  });
   return doc.save();
 }

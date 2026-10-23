@@ -2,6 +2,14 @@
 
 <!-- Neue Einträge oben. Format: ## TT.MM. · SM-xx · Bahn X · Kurztitel -->
 
+## 24.10. · SM-28 · Bahn C · Seite 1, Protokolldaten im PDF
+
+Prompt-ID: SM-28. D59. Layout „Klar“ (D58) bleibt. Nur `frontend/src/pdf/*` und `tests/pdf.test.ts`.
+Seite 1: Kopf, dann Objekt, dann Beteiligte, dann Mängel. Räume beginnen auf Seite 2. Passt die Mängelliste nicht, steht „Mängel (Fortsetzung)“ oben auf der nächsten Seite, danach die Räume.
+Jedes PDF enthält die Anlage `schluesselmoment-protokoll.json` (Format schluesselmoment/1): Protokoll ohne Foto-Blobs, Foto-Hashes, Prüfsumme. `readEmbeddedProtocol` prüft Format und Schema über die Migration. Fehlende oder fremde Anlage, beschädigtes JSON und eine neuere Version geben einen klaren Fehler.
+Ergebnis: `tests/pdf.test.ts` grün (12). Render unter `frontend/test-results/sm28/` (gitignored).
+Offen: keine.
+
 ## 23.10. · SM-27 · Bahn C · PDF-Layout Klar
 
 Prompt-ID: SM-27, Nachtrag Anmerkungen. D58 ersetzt das D38-Layout und die Foto-Stelle aus D28. Nur `frontend/src/pdf/*` und `tests/pdf.test.ts`. SM-09 nicht angefasst.
