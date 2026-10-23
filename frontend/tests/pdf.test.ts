@@ -18,7 +18,7 @@ import {
   updateDefect,
 } from '@/domain/protocol';
 import type { Protocol, Room } from '@/domain/schema';
-import { generatePdf, PDF_X_HEIGHT, type PdfLayoutMark, pdfFileName } from '@/pdf/generate';
+import { generatePdf, type PdfLayoutMark, pdfFileName, roomIconKey } from '@/pdf/generate';
 
 function namedTenant(p: Protocol, name: string, phone: string, email: string): Protocol['tenants'][number] {
   const tenant = p.tenants[0];
@@ -117,7 +117,7 @@ describe('PDF', () => {
     expect(real.getKeywords()?.split(/\s+/) ?? []).not.toContain('demo');
   }, 30_000);
 
-  it('setzt Mangel-Fotos auf die Raum-Seite, nicht in einen Anhang', async () => {
+  it('setzt Mangel-Fotos nur in den Fotoanhang', async () => {
     const foto1 = new Uint8Array(readFileSync(new URL('./e2e/fixtures/foto1.jpg', import.meta.url)));
     const foto2 = new Uint8Array(readFileSync(new URL('./e2e/fixtures/foto2.jpg', import.meta.url)));
     let p: Protocol = createProtocol('abnahme', new Date('2026-10-22T10:00:00Z'));
@@ -138,9 +138,8 @@ describe('PDF', () => {
     const doc = await PDFDocument.load(bytes);
     const counts = doc.getPages().map((_, index) => imageCount(doc, index));
     expect(counts.reduce((sum, n) => sum + n, 0)).toBe(2);
-    const withImages = counts.findIndex((n) => n > 0);
-    expect(withImages).toBeGreaterThanOrEqual(0);
-    expect(withImages).toBeLessThan(doc.getPageCount() - 1);
+    const withImages = counts.flatMap((n, index) => (n > 0 ? [index] : []));
+    expect(withImages).toEqual([doc.getPageCount() - 1]);
   });
 
   it('hält Mangel, Raumkopf und Unterschriften zusammen', async () => {
@@ -203,7 +202,7 @@ describe('PDF', () => {
     const signatures = layout.filter((mark) => mark.block === 'signatures');
     expect(signatures).toHaveLength(1);
     expect(new Set(signatures.map((mark) => mark.page)).size).toBe(1);
-    const contentBottom = (22 * 72) / 25.4 - 1;
+    const contentBottom = (18 * 72) / 25.4 - 1;
     for (const mark of layout) {
       if (mark.block === 'run') {
         expect(
@@ -217,9 +216,15 @@ describe('PDF', () => {
     assertNoTextOverlap(layout);
     for (const id of defectIds) {
       const overview = layout.find((mark) => mark.block === `overview:${id}`);
-      const defect = defects.find((mark) => mark.block === id);
-      expect(overview?.page).toBe(defect?.page);
+      const photos = layout.filter((mark) => mark.block === `photo-for:${id}`);
       expect(overview?.page).toBeGreaterThan(0);
+      expect(photos.length).toBeGreaterThan(0);
+      const photoPage = Math.min(...photos.map((mark) => mark.page));
+      expect(photoPage).toBeGreaterThan(overview?.page ?? 0);
+      const tokens = (layout.find((mark) => mark.block === `overview-fig:${id}`)?.text ?? '')
+        .split(/\D+/)
+        .filter(Boolean);
+      for (const photo of photos) expect(tokens).toContain(photo.text?.replace(/\D/g, ''));
     }
 
     const dir = new URL('../test-results/sm17/', import.meta.url);
@@ -332,7 +337,7 @@ describe('PDF', () => {
         };
       }),
     };
-    const dir = new URL('../test-results/sm20d/', import.meta.url);
+    const dir = new URL('../test-results/sm27/', import.meta.url);
     const draftDir = new URL('entwurf/', dir);
     const signedDir = new URL('unterschrieben/', dir);
     mkdirSync(draftDir, { recursive: true });
@@ -344,17 +349,19 @@ describe('PDF', () => {
     writeFileSync(draftPath, draftBytes);
     const draftText = await renderPages(draftPath, draftDir, draftDoc.getPageCount());
     assertNoTextOverlap(draftLayout);
-    expectKpi(draftText, String(p.rooms.length), 'Räume geprüft');
-    expectKpi(draftText, '3', 'Mängel');
-    expectKpi(draftText, '3', 'Schlüssel übergeben');
+    expect(draftText).toMatch(new RegExp(`${p.rooms.length}\\s+Räume geprüft`));
+    expect(draftText).toMatch(/3\s+Mängel/);
+    expect(draftText).toMatch(/3\s+Schlüssel/);
     expect(draftText).toContain('E-Mail: keine angegeben');
     expect(draftText).toContain('Neue Adresse (nach Auszug):');
-    expect(draftText).toContain('Vorhanden');
+    expect(draftText).toContain('Ausstattung vorhanden');
     expect(draftText).toContain('Backblech 2');
     expect(draftText).toContain('Nicht vorhanden');
     expect(draftText).toContain('Kühlschrank');
-    expect(draftText).toContain('Offen');
-    expect(draftText).toMatch(/Lichter\s+–\s+Nicht vorhanden/);
+    expect(draftText).toContain('Lichter');
+    expect(draftText).toContain('nicht vorhanden');
+    expect(draftText).not.toContain('Offen');
+    expect(draftText).toContain('nicht von der Prüfsumme erfasst');
 
     const signedAt = '2026-10-23T15:04:00.000Z';
     const signed: Protocol = {
@@ -378,8 +385,12 @@ describe('PDF', () => {
     expect(text).toContain('Therme: Füllschlauch da');
     expect(text).toContain('Auszug zum');
     expect(text).toContain('30.11.2026');
-    expect(text).toContain('…');
-    expect(text).not.toContain('Offen:');
+    expect(text).toContain(
+      'Lange Mangelbeschreibung an der Wand, die in der Übersicht gekürzt werden muss, weil sie sonst über die Spalte läuft.',
+    );
+    expect(text).toContain('ab'.repeat(32));
+    expect(text).toContain('Prüfsumme abab…abab');
+    expect(text).not.toContain('Offen');
     assertNoTextOverlap(signedLayout);
   }, 180_000);
 
@@ -406,11 +417,21 @@ describe('PDF', () => {
     writeFileSync(new URL('zehn-fotos-bytes.txt', dir), `${bytes.byteLength}\n`);
   }, 60_000);
 
-  it('zentriert Symbole, hält Trenner, Personen, Umbruch und Bestätigung', async () => {
+  it('hält Merkmale, Fotos, Icons, Umbruch und Anmerkungen', async () => {
+    const longFeature =
+      'Doppelt verglast mit einem sehr langen Zusatz der nicht abgeschnitten werden darf und vollständig im Protokoll steht';
+    const jpeg = Uint8Array.from(Buffer.from(HOCH.join(''), 'base64'));
     let p = createProtocol('abnahme', new Date('2026-10-23T10:00:00Z'));
     const tenant = namedTenant(p, 'Anna Muster', '0711 123', 'anna@example.org');
     p = {
       ...p,
+      property: {
+        ...p.property,
+        street: ' Musterstraße 4 ',
+        postalCode: ' 70190 ',
+        city: ' Stuttgart ',
+        unit: ' ',
+      },
       landlord: {
         ...p.landlord,
         name: 'Hausverwaltung Beispiel',
@@ -419,108 +440,103 @@ describe('PDF', () => {
       },
       tenants: [{ ...tenant, newAddress: 'Beispielweg 4, 70174 Stuttgart' }],
       meters: [
-        { id: 'm1', kind: 'electricity', number: 'E-100', reading: '4567', location: 'Flur', photoIds: [] },
+        {
+          id: 'm1',
+          kind: 'electricity',
+          number: 'E-100',
+          reading: '4567',
+          location: 'Flur',
+          photoIds: ['zaehler'],
+        },
       ],
-      rooms: p.rooms.map((room, index) => {
+      rooms: p.rooms.map((room) => {
+        if (room.templateId === 'final' || room.label.startsWith('Abschluss')) return room;
         const all = confirmAllChecks(room);
-        if (index === 0) return { ...all, note: 'Hinweis zum Raum. '.repeat(28) };
-        if (index !== 1) return all;
-        let next = all;
-        for (const checkId of Object.keys(room.checks)) next = setDetail(next, checkId, 'probe', 'ja');
-        return next;
+        if (room.templateId === 'hallway') {
+          return {
+            ...setDetail(all, 'windows', 'glazing', longFeature),
+            note: 'Hinweis zum Raum. '.repeat(250),
+          };
+        }
+        if (room.id !== 'kitchen') return all;
+        return updateDefect(setCheck(all, 'walls', 'defect'), 'walls', {
+          description: 'Dübellöcher neben dem Fenster',
+          photoIds: ['wand'],
+        });
       }),
     };
     const layout: PdfLayoutMark[] = [];
-    await generatePdf(p, async () => null, layout, { fonts: true });
+    await generatePdf(p, async (id) => (id === 'wand' || id === 'zaehler' ? jpeg : null), layout);
     const runs = layout.filter((mark) => mark.block === 'run');
-    const textMid = (mark: PdfLayoutMark) => mark.y + (PDF_X_HEIGHT * mark.height) / 2;
+    const flat = runs
+      .map((run) => run.text ?? '')
+      .join('')
+      .replace(/\s+/g, '');
+    expect(flat).toContain(longFeature.replace(/\s+/g, ''));
+    expect(runs.some((run) => run.text?.includes('…'))).toBe(false);
 
-    for (const sym of layout.filter((mark) => mark.block === 'symbol')) {
-      const mid = sym.y - sym.height / 2;
-      const gap = runs
-        .filter((run) => run.page === sym.page && (run.x ?? 0) >= (sym.x ?? 0) - 0.5)
-        .reduce((best, run) => Math.min(best, Math.abs(textMid(run) - mid)), Number.POSITIVE_INFINITY);
-      expect(gap).toBeLessThanOrEqual(0.5);
+    for (const room of p.rooms) {
+      expect(layout.some((mark) => mark.block === `room-icon:${room.id}:${roomIconKey(room)}`)).toBe(true);
     }
+    expect(roomIconKey({ templateId: 'room', label: 'Schlafzimmer' })).toBe('Zimmer 2 · Schlafzimmer');
+    expect(roomIconKey({ templateId: 'room', label: 'Kinderzimmer' })).toBe('Zimmer 1 · Wohnzimmer');
+    expect(roomIconKey({ templateId: 'hallway', label: 'Flur' })).toBe('Flur');
 
-    for (const chip of layout.filter((mark) => mark.block === 'chip')) {
-      const sym = layout.find(
-        (mark) =>
-          mark.block === 'symbol' &&
-          mark.page === chip.page &&
-          (mark.x ?? 0) >= (chip.x ?? 0) &&
-          (mark.x ?? 0) <= (chip.x ?? 0) + (chip.width ?? 0),
-      );
-      const mid = sym ? sym.y - sym.height / 2 : 0;
-      const label = runs.find(
-        (run) =>
-          run.page === chip.page && Math.abs(textMid(run) - mid) <= 0.5 && (run.x ?? 0) > (sym?.x ?? 0),
-      );
-      expect(sym && label).toBeTruthy();
-      const left = (sym?.x ?? 0) - (chip.x ?? 0);
-      const right = (chip.x ?? 0) + (chip.width ?? 0) - ((label?.x ?? 0) + (label?.width ?? 0));
-      expect(Math.abs(left - right)).toBeLessThanOrEqual(0.5);
-      expect(left).toBeGreaterThan(2);
-      expect(right).toBeGreaterThan(2);
+    const fotos = layout.find((mark) => mark.block === 'section:fotos');
+    const photoMarks = layout.filter((mark) => mark.block.startsWith('photo:'));
+    expect(fotos).toBeTruthy();
+    expect(photoMarks.length).toBeGreaterThan(0);
+    for (const photo of photoMarks) expect(photo.page).toBeGreaterThanOrEqual(fotos?.page ?? 0);
+    const roomPages = new Set(
+      layout.filter((mark) => mark.block.startsWith('room-head:')).map((mark) => mark.page),
+    );
+    for (const photo of photoMarks) expect(roomPages.has(photo.page)).toBe(false);
+
+    const earlier = (a: PdfLayoutMark, b: PdfLayoutMark) =>
+      a.page < b.page || (a.page === b.page && a.y > b.y);
+    const notes = layout.filter((mark) => mark.block === 'section:notes');
+    const signatures = layout.find((mark) => mark.block === 'signatures');
+    expect(notes).toHaveLength(1);
+    expect(notes[0] && signatures && fotos).toBeTruthy();
+    if (notes[0] && signatures && fotos) {
+      expect(earlier(notes[0], signatures)).toBe(true);
+      expect(earlier(signatures, fotos)).toBe(true);
     }
+    expect(flat).toContain('nichtvonderPrüfsummeerfasst');
+    expect(flat).toContain('Nochnichtbeantwortet');
+    expect(runs.some((run) => run.text === 'Offen' || run.text?.startsWith('Offen'))).toBe(false);
 
-    const leading = runs.filter((run) => {
-      if (!run.text?.trimStart().startsWith('·')) return false;
-      const row = runs.filter((other) => other.page === run.page && Math.abs(other.y - run.y) < 0.5);
-      const minX = Math.min(...row.map((other) => other.x ?? 0));
-      return (run.x ?? 0) <= minX + 0.5;
-    });
-    expect(leading.map((run) => run.text)).toEqual([]);
-    expect(runs.some((run) => run.text?.trimEnd().endsWith('·'))).toBe(true);
-
-    const name = runs.find((run) => run.text === 'Anna Muster');
-    const phone = runs.find((run) => run.text === 'Telefon 0711 123');
-    const mail = runs.find((run) => run.text === 'E-Mail anna@example.org');
-    const address = runs.find((run) => run.text?.startsWith('Neue Adresse (nach Auszug):'));
-    expect(name && phone && mail && address).toBeTruthy();
-    expect(phone?.y).toBeLessThan(name?.y ?? 0);
-    expect(mail?.y).toBeLessThan(phone?.y ?? 0);
-    expect(address?.y).toBeLessThan(mail?.y ?? 0);
+    const joined = runs.map((run) => run.text ?? '').join(' ');
+    expect(joined).toContain('Musterstraße 4, 70190 Stuttgart');
+    expect(joined).not.toContain(' ,');
+    expect(joined).toContain('Telefon 0711 123');
+    expect(joined).toContain('E-Mail anna@example.org');
+    expect(joined).toContain('Neue Adresse (nach Auszug):');
+    expect(joined).toContain('Die Mieterseite bestätigt');
+    expect(joined).toContain('Zählerstände gemeinsam');
+    expect(joined).not.toContain('Der Mieter bestätigt');
 
     const stand = runs.find((run) => run.text === '4.567,0');
     const unit = runs.find((run) => run.text === 'kWh' && run.page === stand?.page);
     expect(stand && unit).toBeTruthy();
     expect(Math.abs((unit?.x ?? 0) - ((stand?.x ?? 0) + (stand?.width ?? 0) + 16))).toBeLessThanOrEqual(0.6);
 
-    const continued = layout
-      .filter((mark) => mark.block.startsWith('room-head:'))
-      .find((head) => {
-        const id = head.block.slice('room-head:'.length);
-        const cont = layout.find((mark) => mark.block === `continuation:${id}`);
-        const startedMidPage = layout.some(
-          (mark) => mark.page === head.page && mark !== head && mark.y > head.y && mark.block !== 'run',
-        );
-        const kept = layout.some((mark) => mark.page === head.page && mark.block.startsWith(`check:${id}:`));
-        return Boolean(cont && cont.page > head.page && startedMidPage && kept);
-      });
+    const pageCount = Math.max(...layout.map((mark) => mark.page));
+    expect(runs.some((run) => run.text === `Seite 1 von ${pageCount}`)).toBe(true);
+    expect(runs.some((run) => run.text === `Seite ${pageCount} von ${pageCount}`)).toBe(true);
+
+    const continued = layout.find((mark) => mark.block.startsWith('continuation:'));
     expect(continued).toBeTruthy();
-
-    const defects = layout.filter((mark) => mark.block.startsWith('defect:'));
-    for (const id of new Set(defects.map((mark) => mark.block))) {
-      const pages = new Set(defects.filter((mark) => mark.block === id).map((mark) => mark.page));
-      expect(pages.size).toBe(1);
-    }
-
-    expect(
-      runs.some(
-        (run) => run.text?.includes('Die Mieterseite bestätigt') && run.text.includes('Zählerstände'),
-      ),
-    ).toBe(true);
-    expect(
-      runs.some((run) => run.text?.includes('Die Mieterseite bestätigt') && run.text.includes('Schlüsseln')),
-    ).toBe(true);
-    expect(runs.some((run) => run.text?.startsWith('Der Mieter bestätigt'))).toBe(false);
+    assertNoTextOverlap(layout);
 
     const bareLayout: PdfLayoutMark[] = [];
     await generatePdf({ ...p, meters: [] }, async () => null, bareLayout);
-    const bare = bareLayout.filter((mark) => mark.block === 'run');
-    expect(bare.some((run) => run.text?.includes('Zählerstände gemeinsam'))).toBe(false);
-    expect(bare.some((run) => run.text?.includes('Schlüsseln'))).toBe(true);
+    const bare = bareLayout
+      .filter((mark) => mark.block === 'run')
+      .map((run) => run.text ?? '')
+      .join(' ');
+    expect(bare).not.toContain('Zählerstände gemeinsam');
+    expect(bare).toContain('Schlüsseln');
   }, 60_000);
 });
 
@@ -551,12 +567,6 @@ function assertNoTextOverlap(layout: PdfLayoutMark[]) {
       }
     }
   }
-}
-
-function expectKpi(text: string, value: string, label: string) {
-  const at = text.indexOf(label);
-  expect(at).toBeGreaterThan(-1);
-  expect(text.slice(Math.max(0, at - 12), at + label.length + 12)).toContain(value);
 }
 
 function tenPhotoJpegs(): Uint8Array[] {

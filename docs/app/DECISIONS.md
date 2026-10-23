@@ -50,6 +50,7 @@
 | D55 | 23.10.2026 | Im Element-Sheet führt „Fertig – weiter zu …“ zum nächsten offenen Element, ohne es auf OK zu setzen. Ohne Status heißt der Knopf „Schließen“. „Nur schließen“ bleibt stehen. | Der Rundgang soll am Stück laufen. Ein offenes Element darf nicht versehentlich als in Ordnung gelten. | Entschieden |
 | D56 | 23.10.2026 | Offene Chips sind neutral (gestrichelter grauer Rand). Orange nur, wenn OK oder Mangel und Angaben fehlen. | Offen ist der Normalzustand. Orange soll nur auf eine Lücke hinweisen. | Entschieden |
 | D57 | 23.10.2026 | Der Abschluss heißt „Abschließen“. Die Erfolgsbox zeigt „Protokoll abgeschlossen“ und die kurze Prüfsumme. „Übernehmen“ erst ab 150 px Strich. | Dieselbe Sprache wie im PDF. Ein Punkt ist keine Unterschrift. | Entschieden |
+| D58 | 23.10.2026 | PDF-Layout „Klar“ (ersetzt D38-Layout) | Eine Kennzahlenzeile, Abschnitte mit Icon ohne Nummern, Merkmale vollständig, Fotos nur im Anhang. Anmerkungen mit Schreiblinien stehen vor den Unterschriften und zählen nicht zur Prüfsumme. Löst die Foto-Stelle aus D28 ab. | Entschieden |
 
 D19/D20 bewusst nicht vergeben (SM-01).
 

@@ -2,6 +2,13 @@
 
 <!-- Neue Einträge oben. Format: ## TT.MM. · SM-xx · Bahn X · Kurztitel -->
 
+## 23.10. · SM-27 · Bahn C · PDF-Layout Klar
+
+Prompt-ID: SM-27, Nachtrag Anmerkungen. D58 ersetzt das D38-Layout und die Foto-Stelle aus D28. Nur `frontend/src/pdf/*` und `tests/pdf.test.ts`. SM-09 nicht angefasst.
+Seite 1: Marke, Titel, Adresse, eine Kennzahlenzeile. Abschnitte mit Icon, ohne Nummern. Räume als Tabelle, Merkmale vollständig. Fotos nur im Anhang, zwei je Seite. Anmerkungen mit zwölf Schreiblinien direkt vor den Unterschriften. Fußzeile mit Seitenzahl, keine Kopfzeile.
+Ergebnis: `tests/pdf.test.ts` grün (10). Biome der PDF-Dateien grün. Render Entwurf und unterschrieben unter `frontend/test-results/sm27/` (gitignored).
+Offen: keine.
+
 ## 23.10. · SM-20d · Bahn C · PDF-Feinschliff
 
 Prompt-ID: SM-20d. Nachtrag zu D37/D38, keine neue D-Nummer. Nur `frontend/src/pdf/*` und `tests/pdf.test.ts`.
