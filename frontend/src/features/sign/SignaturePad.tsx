@@ -16,7 +16,9 @@ export function SignaturePad({
   const ref = useRef<HTMLCanvasElement>(null);
   const pts = useRef<Array<{ x: number; y: number }>>([]);
   const drawing = useRef(false);
+  const drawn = useRef(0);
   const [empty, setEmpty] = useState(true);
+  const [longEnough, setLongEnough] = useState(false);
 
   const setup = useCallback(() => {
     const c = ref.current;
@@ -32,7 +34,9 @@ export function SignaturePad({
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.strokeStyle = '#111827';
+    drawn.current = 0;
     setEmpty(true);
+    setLongEnough(false);
   }, []);
 
   useEffect(() => {
@@ -66,7 +70,12 @@ export function SignaturePad({
     for (const ev of events.length ? events : [e.nativeEvent]) {
       const p = { x: ev.clientX - r.left, y: ev.clientY - r.top };
       const arr = pts.current;
+      const prev = arr[arr.length - 1];
       arr.push(p);
+      if (prev) {
+        drawn.current += Math.hypot(p.x - prev.x, p.y - prev.y);
+        if (drawn.current >= 150) setLongEnough(true);
+      }
       if (arr.length < 3) continue;
       const [a, b, c] = arr.slice(-3) as [typeof p, typeof p, typeof p];
       const m1 = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
@@ -104,12 +113,16 @@ export function SignaturePad({
           ×
         </span>
         <span className="sigpad__line" aria-hidden="true" />
-        {empty ? <p className="sigpad__hint">Hier mit dem Finger unterschreiben</p> : null}
+        {empty ? (
+          <p className="sigpad__hint">Hier mit dem Finger unterschreiben</p>
+        ) : !longEnough ? (
+          <p className="sigpad__hint">Bitte vollständig unterschreiben</p>
+        ) : null}
       </div>
       <button
         type="button"
         className="btn btn--primary btn--block"
-        disabled={empty}
+        disabled={!longEnough}
         onClick={() => ref.current && onSave(ref.current.toDataURL('image/png'))}
       >
         Übernehmen

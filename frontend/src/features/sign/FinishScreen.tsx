@@ -38,6 +38,11 @@ function formatBytes(bytes: number): string {
   return `${kb.toLocaleString('de-DE')} kB`;
 }
 
+function shortChecksum(hash: string): string {
+  if (hash.length <= 8) return hash;
+  return `${hash.slice(0, 4)}…${hash.slice(-4)}`;
+}
+
 function downloadFile(file: File): void {
   const url = URL.createObjectURL(file);
   const a = document.createElement('a');
@@ -101,7 +106,7 @@ export function FinishScreen({ id }: { id: string }) {
       update(() => res.protocol, { allowLocked: true });
       await flush();
       await prunePhotos(p.id, new Set(referencedPhotoIds(p)));
-      showToast('🎉 Protokoll versiegelt');
+      showToast('Protokoll abgeschlossen');
     } finally {
       setBusy(false);
     }
@@ -287,7 +292,7 @@ export function FinishScreen({ id }: { id: string }) {
                   return (
                     <li key={`${s.role}-${s.partyIndex}`} className="list-item">
                       <div className="grow">
-                        <div className="list-item__title">{s.name}</div>
+                        <div className="list-item__title list-item__title--wrap">{s.name}</div>
                         <div className="small muted">{role}</div>
                       </div>
                       {sig ? (
@@ -327,7 +332,7 @@ export function FinishScreen({ id }: { id: string }) {
                 missingSignatureLabel(missingSignatureCount(p))
               ) : (
                 <>
-                  <Icon name="check" /> Abschließen & versiegeln
+                  <Icon name="check" /> Abschließen
                 </>
               )}
             </button>
@@ -348,10 +353,9 @@ export function FinishScreen({ id }: { id: string }) {
         {p.status === 'signed' ? (
           <>
             <div className="notice notice--ok celebrate">
-              <b>🎉 Protokoll abgeschlossen und versiegelt.</b>
-              <div className="small" style={{ wordBreak: 'break-all', marginTop: 6 }}>
-                SHA-256: {p.seal?.hash}
-              </div>
+              <b>Protokoll abgeschlossen</b>
+              <div className="small checksum">Prüfsumme {shortChecksum(p.seal?.hash ?? '')}</div>
+              <div className="small muted">Jede spätere Änderung ergibt eine andere Prüfsumme.</div>
             </div>
             <div className="card small stack">
               <b>Versand an</b>

@@ -2,6 +2,13 @@
 
 <!-- Neue Einträge oben. Format: ## TT.MM. · SM-xx · Bahn X · Kurztitel -->
 
+## 23.10. · SM-22 · Bahn A + B · Feinschliff Live-Review
+
+Prompt-ID: SM-22. Nicht angefasst: Start, Navigation, Basis, PWA (SM-09). Entscheidungen D55–D57 (D48–D54 bleiben SM-09).
+Element-Sheet: ohne Status „Schließen“ (sekundär). Sonst „Fertig – weiter zu …“, wenn nichts blockiert und noch ein offenes Element folgt. Das nächste Sheet bleibt offen, OK wird nicht gesetzt. Letztes Element: „Fertig“. Dazu „Nur schließen“. Offene Chips gestrichelt grau. Orange nur bei OK oder Mangel mit fehlenden Angaben. Namen in der Unterschriftenliste umbrechen auf zwei Zeilen, Vorschau und Pill bleiben rechts. „Abschließen“, Erfolg „Protokoll abgeschlossen“ mit kurzer Prüfsumme (tnum) und dem Satz zur Änderung. Toast ebenso. „Übernehmen“ erst ab 150 px Strich, sonst „Bitte vollständig unterschreiben“.
+Ergebnis: typecheck ✓ · test ✓ (52) · lint ✓. Klickpfad Pixel 7, iPhone 15 und 360×740, jeweils „Fehler: keine“. Screenshots `frontend/test-results/sm22/` (gitignored).
+Offen: keine.
+
 ## 23.10. · SM-21 · Bahn B + A · Native Feel
 
 Prompt-ID: SM-21. Nicht angefasst: `frontend/src/pdf/*` (SM-20c, Commit `4aa43bf`).

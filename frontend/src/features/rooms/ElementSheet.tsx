@@ -25,6 +25,8 @@ export function ElementSheet({
   focus,
   onChange,
   onClose,
+  onNext,
+  nextLabel,
   onError,
 }: {
   room: Room;
@@ -36,6 +38,9 @@ export function ElementSheet({
   focus?: 'photos' | 'description';
   onChange: (fn: (r: Room) => Room) => void;
   onClose: () => void;
+  /** Nächstes offenes Element im Raum. Setzt keinen Status. */
+  onNext?: () => void;
+  nextLabel?: string | null;
   onError: (msg: string) => void;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -284,11 +289,25 @@ export function ElementSheet({
         <div className="sheet__foot">
           <button
             type="button"
-            className={pending ? 'btn btn--block' : 'btn btn--primary btn--block'}
-            onClick={() => closeRef.current()}
+            className={pending || state === 'open' ? 'btn btn--block' : 'btn btn--primary btn--block'}
+            onClick={() => {
+              if (state !== 'open' && !pending && nextLabel && onNext) onNext();
+              else closeRef.current();
+            }}
           >
-            {pending ? sheetCloseLabel(pending) : 'Fertig'}
+            {pending
+              ? sheetCloseLabel(pending)
+              : state === 'open'
+                ? 'Schließen'
+                : nextLabel
+                  ? `Fertig – weiter zu ${nextLabel}`
+                  : 'Fertig'}
           </button>
+          {state !== 'open' && !pending && nextLabel ? (
+            <button type="button" className="btn btn--text btn--block" onClick={() => closeRef.current()}>
+              Nur schließen
+            </button>
+          ) : null}
         </div>
       </div>
     </div>

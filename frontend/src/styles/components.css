@@ -31,6 +31,10 @@
 .small {
   font-size: var(--fs-sm);
 }
+.checksum {
+  font-variant-numeric: tabular-nums;
+  margin-top: 6px;
+}
 .hint {
   font-size: var(--fs-sm);
   font-style: normal;
@@ -319,7 +323,15 @@
 .chip-row--open > .chip,
 .chip-row--open > .chip__info {
   border-style: dashed;
+  border-color: var(--c-border);
+  background: var(--c-surface);
+  color: var(--c-text);
+}
+.chip-row--missing > .chip,
+.chip-row--missing > .chip__info {
   border-color: var(--theme-current-color-status-warning);
+  background: var(--theme-current-color-status-warning-background);
+  color: var(--theme-current-color-text-warning);
 }
 .chip-row--nudge {
   animation: chip-nudge 400ms ease;
@@ -488,9 +500,18 @@
   flex: none;
   position: sticky;
   bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   background: var(--c-surface);
   border-top: 1px solid var(--theme-current-color-separator);
   padding: 8px 16px calc(12px + env(safe-area-inset-bottom) + var(--keyboard, 0px));
+}
+.sheet__foot .btn {
+  white-space: normal;
+  text-align: center;
+  line-height: 1.25;
+  padding-block: 10px;
 }
 .list {
   list-style: none;
@@ -518,6 +539,13 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.list-item__title--wrap {
+  white-space: normal;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+  max-height: 2.5em;
 }
 .subhead {
   font-size: var(--fs-md);
@@ -907,7 +935,6 @@
   display: grid;
   place-items: center;
 }
-
 /* Hinweise */
 .toast {
   position: fixed;

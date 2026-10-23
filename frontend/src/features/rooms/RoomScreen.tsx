@@ -209,6 +209,15 @@ export function RoomScreen({ id, roomId, checkId }: { id: string; roomId: string
     setOpenId(nextId);
   };
 
+  const nextOpenLabel = (currentId: string): string | null => {
+    const start = template.checks.indexOf(currentId);
+    if (start < 0) return null;
+    for (const id of template.checks.slice(start + 1)) {
+      if ((room.checks[id] ?? 'open') === 'open') return CHECKS[id]?.label ?? id;
+    }
+    return null;
+  };
+
   const nudgeChip = (checkId: string) => {
     document
       .querySelector(`[data-check="${checkId}"]`)
@@ -300,7 +309,14 @@ export function RoomScreen({ id, roomId, checkId }: { id: string; roomId: string
                 <div
                   key={checkId}
                   data-check={checkId}
-                  className={`chip-row${s === 'open' ? ' chip-row--open' : ''}${nudgeId === checkId ? ' chip-row--nudge' : ''}`}
+                  className={[
+                    'chip-row',
+                    s === 'open' ? 'chip-row--open' : '',
+                    missingAttributes(room, checkId).length ? 'chip-row--missing' : '',
+                    nudgeId === checkId ? 'chip-row--nudge' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
                 >
                   <button
                     type="button"
@@ -484,6 +500,16 @@ export function RoomScreen({ id, roomId, checkId }: { id: string; roomId: string
           focus={sheetFocus}
           onChange={setRoom}
           onError={showToast}
+          nextLabel={nextOpenLabel(openId)}
+          onNext={() => {
+            const start = template.checks.indexOf(openId);
+            const next = template.checks
+              .slice(start + 1)
+              .find((cid) => (room.checks[cid] ?? 'open') === 'open');
+            if (!next) return;
+            setSheetFocus(undefined);
+            setOpenId(next);
+          }}
           onClose={() => {
             const current = openId;
             dismissSheet();
