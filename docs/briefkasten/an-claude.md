@@ -2,6 +2,19 @@
 
 <!-- Neue Einträge oben. Format: ## TT.MM. · SM-xx · Bahn X · Kurztitel -->
 
+## 23.10. · SM-19 · Bahn A + E · Pflichtfelder und ⓘ-Ablauf
+
+Prompt-ID: SM-19. Nicht angefasst: `frontend/src/pdf/*` (SM-20, Commit `5ff0c85`).
+ACs: AC2 Chip nur offen↔OK, AC3 Mangel und Nicht vorhanden nur im ⓘ-Sheet, AC4 ein Foto plus Pflicht-Angaben, neu AC14 Pflichtfelder. D39–D43. Schemaversion 3.
+Ergebnis: GRÜN. typecheck ✓ · test ✓ (45) · lint ✓. Klickpfad Pixel 7, iPhone 15 und 360×740, jeweils „Fehler: keine“. Screenshots `frontend/test-results/sm19/` (gitignored).
+Ablauf: Chip tippen wechselt nur offen und OK. Fehlen Angaben, öffnet sich das Sheet mit „In Ordnung“. Mangel und Nicht vorhanden nur über ⓘ. Der Schalter „Gibt es Mängel?“ ist weg, unter dem Titel steht die Statuszeile. Küche und Bad: jeder Ausstattungspunkt vorhanden oder nicht vorhanden, Anzahl startet leer. Basis und Zähler: Stern, Fehler erst bei Verlassen oder „Weiter“. Abschluss listet Blockierendes oben (Link scrollt zum Feld) und klappt „Empfohlen, aber nicht nötig“ ein. Mieter-Haken „Keine E-Mail-Adresse“. „Neue Adresse (nach Auszug)“ nur bei Abnahme, freiwillig. Beim Senden ohne Mieter-Mail der Hinweis, die Adresse im Mailprogramm zu ergänzen.
+PDF-Liste für den Stand nach SM-20 (nicht in diesem Commit umgesetzt):
+- `CheckState` `'na'`: im PDF als Wort „Nicht vorhanden“. SM-20 zeichnet dafür bisher nur einen grauen Strich.
+- `Party.noEmail`: dieser Mieter hat keine E-Mail. Eine leere Adresse ist dann keine vergessene Pflicht.
+- `Party.newAddress`: freiwillig, nur bei Abnahme, Zeile „Neue Adresse (nach Auszug)“. Leer lässt die Zeile weg.
+- Ausstattung dreivertig: `null` unbeantwortet (im versiegelten Protokoll für Küche und Bad nicht mehr offen), `true` vorhanden, `false` nicht vorhanden. Anzahl ist eine Zahl oder `null` (0 ist eine Antwort).
+Offene Punkte: kein echtes Gerät, nur Geräteprofile.
+
 ## 23.10. · SM-20 · Bahn C · PDF-Design
 
 Prompt-ID: SM-20. Commit-Nachricht: SM-20: PDF-Design. Nicht angefasst: SM-18-Dateien, SM-19, Startseite.

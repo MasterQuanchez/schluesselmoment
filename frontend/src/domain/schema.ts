@@ -5,13 +5,13 @@
  */
 import { z } from 'zod';
 
-export const SCHEMA_VERSION = 2 as const;
+export const SCHEMA_VERSION = 3 as const;
 
 export const ProtocolType = z.enum(['uebergabe', 'abnahme', 'bestandsaufnahme']);
 export type ProtocolType = z.infer<typeof ProtocolType>;
 
-/** Tri-State je Prüfpunkt (Schnellcheck-Chip): offen → OK → Mangel → offen */
-export const CheckState = z.enum(['open', 'ok', 'defect']);
+/** offen ↔ OK am Chip. Mangel und Nicht vorhanden nur im Sheet. */
+export const CheckState = z.enum(['open', 'ok', 'defect', 'na']);
 export type CheckState = z.infer<typeof CheckState>;
 
 /** Entscheidung auf Raumebene (großer Schalter oben) */
@@ -22,6 +22,9 @@ export const Party = z.object({
   name: z.string().max(200).default(''),
   phone: z.string().max(60).default(''),
   email: z.string().max(200).default(''),
+  /** Nur Mieter: gesetzt heißt, es gibt keine E-Mail-Adresse. */
+  noEmail: z.boolean().default(false),
+  /** Nur bei Abnahme, freiwillig: Adresse nach dem Auszug. */
   newAddress: z.string().max(300).default(''),
 });
 export type Party = z.infer<typeof Party>;
@@ -68,8 +71,13 @@ export const Room = z.object({
   details: z.record(z.string(), z.record(z.string(), z.string())).default({}),
   /** Prüfpunkt-ID → Mangel (nur wenn checks[id] === 'defect') */
   defects: z.record(z.string(), Defect).default({}),
-  /** Ausstattung: Geräte/Einrichtung → vorhanden (bool) oder Anzahl (number) */
-  inventory: z.record(z.string(), z.union([z.boolean(), z.number().int().min(0).max(99)])).default({}),
+  /**
+   * Ausstattung. Bool: null offen, true vorhanden, false nicht vorhanden.
+   * Anzahl: null offen, sonst die Zahl (0 ist eine Antwort).
+   */
+  inventory: z
+    .record(z.string(), z.union([z.boolean(), z.number().int().min(0).max(99), z.null()]))
+    .default({}),
   note: z.string().max(4000).default(''),
   completedAt: z.string().nullable().default(null),
 });

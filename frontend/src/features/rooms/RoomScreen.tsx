@@ -9,9 +9,9 @@ import {
   getTemplate,
   inventoryGroups,
   issueLabel,
-  markHasDefects,
-  markNoDefects,
+  missingAttributes,
   photoCountLabel,
+  roomHeadline,
   roomIssues,
   roomProgress,
 } from '@/domain/protocol';
@@ -21,10 +21,15 @@ import { photoUrl } from '@/storage/photos';
 import { useProtocol } from '@/storage/useProtocol';
 import { useSettings } from '@/storage/useSettings';
 import { Icon } from '@/ui/Icon';
-import { Loading, StepNav, Stepper, TopBar, useToast } from '@/ui/kit';
+import { Loading, StepNav, TopBar, useToast } from '@/ui/kit';
 import { ElementSheet } from './ElementSheet';
 
-const STATE_LABEL: Record<CheckState, string> = { open: 'nicht geprüft', ok: 'in Ordnung', defect: 'Mangel' };
+const STATE_LABEL: Record<CheckState, string> = {
+  open: 'nicht geprüft',
+  ok: 'in Ordnung',
+  defect: 'Mangel',
+  na: 'nicht vorhanden',
+};
 
 function MiniPhoto({ id }: { id: string }) {
   const [url, setUrl] = useState<string | null>(null);
@@ -50,7 +55,7 @@ function InventoryGroups({
   ids: readonly string[];
   room: Room;
   locked: boolean;
-  onChange: (itemId: string, value: boolean | number) => void;
+  onChange: (itemId: string, value: boolean | number | null) => void;
 }) {
   const groups = inventoryGroups(ids);
   return (
@@ -69,22 +74,22 @@ function InventoryGroups({
                   <button
                     type="button"
                     className="chip chip--option"
-                    aria-label={`${def.label}: Ja`}
+                    aria-label={`${def.label}: vorhanden`}
                     aria-pressed={value === true}
                     disabled={locked}
                     onClick={() => onChange(itemId, true)}
                   >
-                    Ja
+                    <Icon name="check" size={14} /> vorhanden
                   </button>
                   <button
                     type="button"
                     className="chip chip--option"
-                    aria-label={`${def.label}: Nein`}
+                    aria-label={`${def.label}: nicht vorhanden`}
                     aria-pressed={value === false}
                     disabled={locked}
                     onClick={() => onChange(itemId, false)}
                   >
-                    Nein
+                    – nicht vorhanden
                   </button>
                 </div>
               </div>
@@ -102,9 +107,10 @@ function InventoryGroups({
             return (
               <div key={itemId} className="switch-row">
                 <span className="grow">{def.label}</span>
-                <Stepper
+                <CountStepper
                   label={def.label}
-                  value={typeof value === 'number' ? value : 0}
+                  value={typeof value === 'number' ? value : null}
+                  disabled={locked}
                   onChange={(n) => onChange(itemId, n)}
                 />
               </div>
@@ -112,6 +118,45 @@ function InventoryGroups({
           })}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function CountStepper({
+  label,
+  value,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  value: number | null;
+  disabled: boolean;
+  onChange: (n: number | null) => void;
+}) {
+  return (
+    // A fieldset would add the browser border and padding and change the Harbour stepper.
+    // biome-ignore lint/a11y/useSemanticElements: role=group names the counter without fieldset chrome
+    <div className="stepper" role="group" aria-label={label}>
+      <button
+        type="button"
+        disabled={disabled}
+        aria-label={`${label} weniger`}
+        onClick={() => {
+          if (value === null) return;
+          onChange(value <= 0 ? null : value - 1);
+        }}
+      >
+        −
+      </button>
+      <output aria-live="polite">{value === null ? '–' : value}</output>
+      <button
+        type="button"
+        disabled={disabled}
+        aria-label={`${label} mehr`}
+        onClick={() => onChange(value === null ? 0 : Math.min(99, value + 1))}
+      >
+        +
+      </button>
     </div>
   );
 }
@@ -140,18 +185,11 @@ export function RoomScreen({ id, roomId }: { id: string; roomId: string }) {
   const setRoom = (fn: (r: Room) => Room) =>
     update((proto: Protocol) => ({ ...proto, rooms: proto.rooms.map((r) => (r.id === roomId ? fn(r) : r)) }));
 
-  const openIds = template.checks.filter((checkId) => (room.checks[checkId] ?? 'open') === 'open');
   const issues = roomIssues(room);
   const firstIssue = issues[0];
   const idx = p.rooms.findIndex((r) => r.id === roomId);
   const nextRoom = p.rooms[idx + 1];
   const ready = issues.length === 0;
-
-  const onNoDefects = () => {
-    const res = markNoDefects(room);
-    if (!res.ok) return showToast(res.reason);
-    setRoom(() => res.room);
-  };
 
   const openSheet = (checkId: string, focus?: 'photos' | 'description') => {
     setSheetFocus(focus);
@@ -172,7 +210,18 @@ export function RoomScreen({ id, roomId }: { id: string; roomId: string }) {
       nudgeChip(firstIssue.checkId);
       return;
     }
-    openSheet(firstIssue.checkId, firstIssue.kind === 'missingPhotos' ? 'photos' : 'description');
+    if (firstIssue.kind === 'missingInventory') {
+      document.getElementById('ausstattung')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    openSheet(
+      firstIssue.checkId,
+      firstIssue.kind === 'missingPhotos'
+        ? 'photos'
+        : firstIssue.kind === 'missingDescription'
+          ? 'description'
+          : undefined,
+    );
   };
 
   const onComplete = () => {
@@ -193,8 +242,15 @@ export function RoomScreen({ id, roomId }: { id: string; roomId: string }) {
     ? `${room.label} fertig – weiter zu ${nextRoom.label}`
     : `${room.label} fertig – zur Übersicht`;
   const blockedLabel = firstIssue
-    ? `${issueLabel(firstIssue)}${issues.length > 1 ? ` · +${issues.length - 1} weitere` : ''}`
+    ? `${issueLabel(firstIssue, room)}${issues.length > 1 ? ` · +${issues.length - 1} weitere` : ''}`
     : finishLabel;
+  const headline = roomHeadline(room);
+  const headlineTone =
+    headline === 'Keine Mängel'
+      ? 'badge badge--ok'
+      : headline.includes('Mangel')
+        ? 'badge badge--defect'
+        : 'badge';
 
   return (
     <>
@@ -207,37 +263,13 @@ export function RoomScreen({ id, roomId }: { id: string; roomId: string }) {
           <p className="page-sub">
             Zustand des Raums erfassen · {progress.done}/{progress.total} geprüft
           </p>
+          <p>
+            <span className={headlineTone}>{headline}</span>
+          </p>
           <div className="meter" aria-hidden="true">
             <span style={{ width: `${(progress.done / Math.max(1, progress.total)) * 100}%` }} />
           </div>
         </div>
-
-        <section aria-labelledby="h-decision">
-          <h2 id="h-decision" className="section-title">
-            Gibt es Mängel?
-          </h2>
-          <div className="decision">
-            <button
-              type="button"
-              data-kind="ok"
-              aria-pressed={room.decision === 'noDefects'}
-              onClick={onNoDefects}
-              disabled={locked}
-            >
-              <Icon name="check" size={22} /> Keine Mängel
-            </button>
-            <button
-              type="button"
-              data-kind="defect"
-              aria-pressed={room.decision === 'defects'}
-              onClick={() => setRoom(markHasDefects)}
-              disabled={locked}
-            >
-              <Icon name="x" size={22} /> Mängel
-            </button>
-          </div>
-          {openIds.length > 0 ? <p className="hint">Bitte tippen Sie jeden Punkt einmal an.</p> : null}
-        </section>
 
         <section aria-labelledby="h-quick">
           <h2 id="h-quick" className="section-title row">
@@ -264,21 +296,33 @@ export function RoomScreen({ id, roomId }: { id: string; roomId: string }) {
                     disabled={locked}
                     onClick={() => {
                       const current = room.checks[checkId] ?? 'open';
-                      setRoom((r) => cycleCheck(r, checkId));
-                      if (current === 'ok') openSheet(checkId, 'photos');
+                      if (current !== 'open') {
+                        setRoom((r) => cycleCheck(r, checkId));
+                        return;
+                      }
+                      const next = cycleCheck(room, checkId);
+                      setRoom(() => next);
+                      if (missingAttributes(next, checkId).length) openSheet(checkId);
                     }}
-                    aria-label={`${label}: ${STATE_LABEL[s]}. Tippen zum Ändern.`}
+                    aria-label={
+                      s === 'na'
+                        ? `${label}: nicht vorhanden`
+                        : `${label}: ${STATE_LABEL[s]}. Tippen zum Ändern.`
+                    }
                   >
                     <span className="chip__mark">
                       {s === 'ok' ? (
                         <Icon name="check" size={14} />
                       ) : s === 'defect' ? (
                         <Icon name="alert" size={13} />
+                      ) : s === 'na' ? (
+                        '–'
                       ) : (
                         <Icon name={def?.icon ?? 'box'} size={16} />
                       )}
                     </span>
                     {label}
+                    {s === 'na' ? <span>nicht vorh.</span> : null}
                   </button>
                   <button
                     type="button"
@@ -296,7 +340,9 @@ export function RoomScreen({ id, roomId }: { id: string; roomId: string }) {
               );
             })}
           </div>
-          <p className="hint">Tippen Sie jeden Punkt einzeln an: In Ordnung, dann Mangel, dann zurück.</p>
+          <p className="hint">
+            Tippen Sie einen Punkt an für In Ordnung. Mangel oder Nicht vorhanden über ⓘ.
+          </p>
         </section>
 
         {defectIds.map((checkId) => {
@@ -368,7 +414,7 @@ export function RoomScreen({ id, roomId }: { id: string; roomId: string }) {
         </section>
 
         {template.inventory?.length ? (
-          <section aria-labelledby="h-inv">
+          <section id="ausstattung" aria-labelledby="h-inv">
             <h2 id="h-inv" className="section-title">
               Ausstattung
             </h2>

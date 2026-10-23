@@ -60,40 +60,50 @@ console.log('Erstellt von vorbelegt:', await page.getByLabel('Erstellt von').inp
 // Einbauküche + Balkon
 await page.getByRole('button', { name: 'Einbau' }).click();
 await page.getByRole('button', { name: 'Balkon' }).click();
+await page.getByLabel('Objekt-Nr.').fill('12');
 await page.getByLabel('Vermieter/Verwalter: Name').fill('Hausverwaltung Beispiel GmbH');
+await page.getByLabel('Telefon').nth(0).fill('0711 111111');
+await page.getByLabel('E-Mail').nth(0).fill('verwaltung@example.org');
 await page.getByLabel('Mieter: Name').fill('Anna Muster');
-await page.getByLabel('E-Mail').nth(1).fill('anna@example.org');
+await page.getByLabel('Telefon').nth(1).fill('0711 222222');
+await page.getByRole('checkbox', { name: 'Keine E-Mail-Adresse' }).check();
 await shot(page, '02-basis');
 await page.getByRole('link', { name: 'Weiter zu den Räumen' }).click();
 await page.getByRole('heading', { name: 'Räume' }).waitFor();
 await shot(page, '03-raeume');
+await page.getByRole('navigation', { name: 'Schritte' }).getByRole('link', { name: 'Abschluss' }).click();
+await page.getByRole('button', { name: /Inhalt festschreiben/ }).waitFor();
+if (!(await page.getByRole('button', { name: /Inhalt festschreiben/ }).isDisabled())) {
+  errors.push('Abschluss nicht gesperrt');
+}
+await shot(page, '03b-abschluss-gesperrt');
+await page.getByRole('navigation', { name: 'Schritte' }).getByRole('link', { name: 'Räume' }).click();
+await page.getByRole('heading', { name: 'Räume' }).waitFor();
 await noOverflow('Räume');
 const roomCount = await page.locator('.list li').count();
 console.log('Räume:', roomCount);
-// Flur: keine Mängel, zwei Details über das Sheet, Rest einzeln
+// Flur: Chip OK öffnet das Sheet, eine Angabe, ein Element nicht vorhanden, Rest einzeln
 await page.getByRole('link', { name: 'Weiter: Flur' }).click();
-await page.getByRole('button', { name: 'Keine Mängel' }).click();
-async function tapAllOpen() {
-  for (;;) {
-    const o = page.locator('.chips .chip[data-state="open"]');
-    if ((await o.count()) === 0) break;
-    await o.first().click();
-  }
-}
-await page.getByText('Bitte tippen Sie jeden Punkt einmal an.').waitFor();
 await page.getByRole('button', { name: /noch nicht geprüft/ }).waitFor();
 await shot(page, 'sm11-offen');
-await page.getByRole('button', { name: 'Details zu Decke' }).click();
+await page.getByRole('button', { name: /Decke: nicht geprüft/ }).click();
 const decke = page.getByRole('dialog');
 await decke.getByRole('heading', { name: 'Decke' }).waitFor();
 await shot(page, 'sm11-sheet');
 await decke.getByRole('button', { name: 'Neu', exact: true }).click();
+await decke.getByRole('button', { name: 'Putz', exact: true }).click();
 await decke.getByRole('button', { name: 'Fertig', exact: true }).click();
+await page.locator('[data-check="ceiling"] .chip[data-state="ok"]').waitFor();
+await page.getByRole('button', { name: 'Details zu Steckdosen' }).click();
+const steckdosen = page.getByRole('dialog');
+await steckdosen.getByRole('button', { name: 'Nicht vorhanden' }).click();
+await steckdosen.getByRole('button', { name: 'Fertig', exact: true }).click();
+await page.locator('[data-check="sockets"] .chip[data-state="na"]').waitFor();
 await page.getByRole('button', { name: 'Details zu Boden' }).click();
 const boden = page.getByRole('dialog');
+await boden.getByRole('button', { name: 'In Ordnung' }).click();
 await boden.getByRole('button', { name: 'Parkett', exact: true }).click();
 await boden.getByRole('button', { name: 'Fertig', exact: true }).click();
-await page.locator('[data-check="ceiling"] .chip[data-state="ok"]').waitFor();
 await page.locator('[data-check="floor"] .chip[data-state="ok"]').waitFor();
 await tapAllOpen();
 await shot(page, '04-flur-alle-bestaetigt');
@@ -103,12 +113,13 @@ await page.getByRole('button', { name: /Flur fertig – weiter/ }).click();
 // Küche: Mangel ohne Foto schließen, ein Foto nachreichen.
 await page.getByRole('heading', { name: 'Küche', level: 1 }).waitFor();
 await tapAllOpen();
+await answerInventory();
 await shot(page, '05-kueche-schnellcheck');
-await page.getByRole('button', { name: /^Wände:/ }).click();
-const walls = page.getByRole('dialog');
-await walls.getByRole('heading', { name: 'Wände' }).waitFor();
+await page.getByRole('button', { name: 'Details zu Wände' }).click();
+const prepareWalls = page.getByRole('dialog');
+await prepareWalls.getByRole('button', { name: 'Mangel', exact: true }).click();
 await shot(page, 'sm16-sheet');
-await walls.getByRole('button', { name: 'Schließen – 1 Foto fehlt noch' }).click();
+await prepareWalls.getByRole('button', { name: 'Schließen – 1 Foto fehlt noch' }).click();
 await page.getByRole('button', { name: /Wände: 1 Foto fehlt/ }).waitFor();
 await shot(page, 'sm16-foto-fehlt');
 await page.getByRole('button', { name: /Wände: 1 Foto fehlt/ }).click();
@@ -151,12 +162,8 @@ for (let i = 0; i < 20; i++) {
   await h1.waitFor();
   const title = (await h1.textContent()).trim();
   if (title === 'Räume') break;
-  await page.getByRole('button', { name: 'Keine Mängel' }).click();
   await tapAllOpen();
-  if (title === 'Bad') {
-    await page.getByRole('button', { name: 'Spiegel: Ja', exact: true }).click();
-    await page.getByRole('button', { name: 'Handtuchhaken mehr' }).click();
-  }
+  await answerInventory();
   if (title === 'Abschluss-Prüfungen') await shot(page, '09-abschlusspruefungen');
   await page
     .getByRole('button', { name: new RegExp(`${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} fertig`) })
@@ -181,12 +188,53 @@ const [d0] = await Promise.all([
 ]);
 await d0.saveAs(`${SP}/entwurf.pdf`);
 await page.getByRole('button', { name: /Inhalt festschreiben/ }).click();
+async function fillOpenSheet(dialog) {
+  const rows = dialog.locator('.attr-row');
+  const n = await rows.count();
+  for (let i = 0; i < n; i++) {
+    const choice = rows.nth(i).locator('button[aria-pressed="false"]').first();
+    if (await choice.count()) await choice.click();
+  }
+  await dialog.locator('.sheet__foot button').click();
+  await dialog.waitFor({ state: 'hidden' });
+}
+async function tapAllOpen() {
+  for (;;) {
+    const dialog = page.getByRole('dialog');
+    if (await dialog.isVisible().catch(() => false)) {
+      await fillOpenSheet(dialog);
+      continue;
+    }
+    const o = page.locator('.chips .chip[data-state="open"]');
+    if ((await o.count()) === 0) break;
+    await o.first().evaluate((el) => el.click());
+    const opened = await dialog
+      .waitFor({ state: 'visible', timeout: 800 })
+      .then(() => true)
+      .catch(() => false);
+    if (!opened) continue;
+    await fillOpenSheet(dialog);
+  }
+}
+async function answerInventory() {
+  const present = page.getByRole('button', { name: /: vorhanden$/ });
+  const n = await present.count();
+  for (let i = 0; i < n; i++) {
+    const btn = present.nth(i);
+    if ((await btn.getAttribute('aria-pressed')) !== 'true') await btn.click();
+  }
+  const more = page.getByRole('button', { name: / mehr$/ });
+  const m = await more.count();
+  for (let i = 0; i < m; i++) {
+    const btn = more.nth(i);
+    const text = await btn.locator('xpath=..').locator('output').textContent();
+    if (text?.trim() === '–') await btn.click();
+  }
+}
 async function noOverflow(where) {
   const ok = await page.evaluate(() => document.documentElement.scrollWidth === window.innerWidth);
   if (!ok) {
-    const detail = await page.evaluate(
-      () => `${document.documentElement.scrollWidth}≠${window.innerWidth}`,
-    );
+    const detail = await page.evaluate(() => `${document.documentElement.scrollWidth}≠${window.innerWidth}`);
     errors.push(`Überlauf ${where}: ${detail}`);
   }
 }
@@ -222,10 +270,7 @@ console.log('PDF:', d1.suggestedFilename());
 // Sperre prüfen: Raum ist schreibgeschützt
 await page.goto(page.url().replace('abschluss', 'raeume/kitchen'));
 await page.getByRole('heading', { name: 'Küche', level: 1 }).waitFor();
-console.log(
-  'Keine-Mängel-Button deaktiviert:',
-  await page.getByRole('button', { name: 'Keine Mängel' }).isDisabled(),
-);
+console.log('Chip gesperrt:', await page.locator('.chip').first().isDisabled());
 // Persistenz: Reload
 await page.goto('http://localhost:4173/');
 await page.reload();

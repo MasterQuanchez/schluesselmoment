@@ -31,10 +31,10 @@ v1 (Nov./Dez. 2025, React/Vite) wird neu aufgebaut: der API-Key lag im Bundle, l
 - Protokolltypen Übergabe, Abnahme, Bestandsaufnahme
 - Basisdaten: Objekt, Lage, Ausstattung (Zimmer, Bäder, Küche normal/Einbau, Gäste-WC, Außenbereich, Keller), Beteiligte inkl. E-Mail
 - Raumliste aus der Ausstattung; Prüfpunkte je Raumvorlage laut Word-Protokoll; Balkon/Terrasse ohne Fenster, Türrahmen und Heizkörper
-- Schnellerfassung je Raum: Schalter „Keine Mängel“/„Mängel“, Tri-State-Chips (OK → Mangel → zurück), Fortschritt „7/9“
-- Pflicht-Durchklicken: Jeder Punkt wird einzeln bestätigt. Es gibt keinen „Alle OK“-Knopf.
-- Mangel: Beschreibung + mind. 2 Fotos (Kamera), Schnellauswahl-Begriffe (Standard zentral + eigene je Gerät)
-- Optionale Details (Anstrich, Belag, Verglasung, Material, Rollladen …), Ausstattung (Einbauküche, Bad)
+- Schnellerfassung je Raum: Chip offen ↔ OK, Mangel und Nicht vorhanden im ⓘ-Sheet, Fortschritt „7/9“, Statuszeile unter dem Titel
+- Pflicht-Durchklicken: Jeder Punkt wird einzeln bestätigt. Es gibt keinen „Alle OK“-Knopf und keinen Mängel-Schalter.
+- Mangel: Beschreibung + mind. 1 Foto (Kamera), Schnellauswahl-Begriffe (Standard zentral + eigene je Gerät)
+- Pflicht-Angaben bei OK und Mangel (Anstrich, Belag, …). Nicht vorhanden braucht keine Angaben. Ausstattung in Küche und Bad ist Pflicht (vorhanden / nicht vorhanden, Anzahl ab 0).
 - Abschluss-Prüfungen (Restgegenstände, Therme, Wartungsrechnung, Rauchwarnmelder, Gemeinschaftsflächen)
 - Zählerstände (mit Foto) und Schlüssel
 - Unterschrift aller Beteiligten auf dem Gerät; Inhalt vorher festschreiben; Versiegelung SHA-256
@@ -53,9 +53,9 @@ v1 (Nov./Dez. 2025, React/Vite) wird neu aufgebaut: der API-Key lag im Bundle, l
 ## Acceptance Criteria
 
 - AC1: Given a new protocol with features (2 rooms, Einbauküche, Balkon), when rooms are generated, then the list is Flur, Küche, Bad, Zimmer 1, Zimmer 2, Balkon, Eingangstür & Briefkasten, Abschluss-Prüfungen, and the Balkon has no Fenster/Tür/Heizkörper.
-- AC2: Given a room, when the user taps „Keine Mängel“, then no check changes state and the room cannot be completed until every check is ✓ or ⚠; ein Detail zu setzen bestätigt nur dieses Element.
-- AC3: Given a chip, when tapped repeatedly, then it cycles open → OK → Mangel → open, and the defect data survives a reset (no data loss from mis-taps).
-- AC4: Given a check marked Mangel, when the user tries to complete the room, then it is blocked until a description and ≥ RULES.minPhotosPerDefect (derzeit 1) Foto exist.
+- AC2: Given a room, when the user taps a chip, then only that element switches between open and OK. The room cannot be completed until every element is OK or Nicht vorhanden, OK and Mangel have every attribute, and kitchen and bath inventory is answered. Setting one attribute confirms only that element. The room decision is derived from the elements.
+- AC3: Given a chip, when tapped repeatedly, then it cycles only open → OK → open. Mangel and Nicht vorhanden are set only in the ⓘ sheet. Defect data survives a return to open.
+- AC4: Given a check marked Mangel, when the user tries to complete the room, then it is blocked until a description and ≥ RULES.minPhotosPerDefect (derzeit 1) Foto exist, and until every attribute of that element is set. Nicht vorhanden needs no attributes.
 - AC5: Given a Schnellauswahl term, when tapped, then it is appended to the note (no duplicates) and the text remains editable; own terms from „Mehr“ appear in every room on this device.
 - AC6: Given any room incomplete or missing names/address, when on Abschluss, then „Inhalt festschreiben“ is disabled and the open points are listed as links.
 - AC7: Given status „signing“, when content screens are opened, then all inputs are read-only; „Zurück zur Bearbeitung“ discards signatures.
@@ -65,6 +65,7 @@ v1 (Nov./Dez. 2025, React/Vite) wird neu aufgebaut: der API-Key lag im Bundle, l
 - AC11: Given airplane mode after first load, when the app is opened, then it works fully (create, photos, sign, PDF).
 - AC12: Given the production build, when served with the CSP from `frontend/vercel.json`, then there are no console errors and no request leaves the origin.
 - AC13: Given the PDF, then it contains text (not images of text), German umlauts, the defect with figure numbers, defect photos on the room page and meter photos next to the meter (no photo appendix), signatures and „Seite x von y“.
+- AC14: Given Basis or meters, when a blocking field is empty (street, 5-digit postal code, city, landlord name, every tenant name, meter reading, a filled but invalid email, and with the contact switch also unit, object number, phone and email), then finish stays disabled and the point links to that field. Tenant „Keine E-Mail“ drops that tenant’s email. Meter number, location and photo are recommended and do not block.
 
 ## Features
 
@@ -91,3 +92,4 @@ Siehe `docs/app/DECISIONS.md` (D1–D16).
 - 2026-10-23 SM-14 (`3e47ae6`): Secret-Check. Kein Live-Schlüssel. PII-Treffer im Lockfile und in der Skill-Doku.
 - 2026-10-23 SM-16 (`da7b167`, `32af97d`, `e9fda74`): Gesperrte Zustände nennen Element und Grund (D26). Mangel-Vorschläge je Element, Raum-Notiz nur Zustandsbegriffe (D27). Fotos im PDF beim Mangel bzw. beim Zähler, kein Sammelanhang (D28, AC13). D25 war bereits SM-10.
 - 2026-10-23 SM-18: Unterschrift-Feld und Liste, Sheet-Fuß, Raumliste mit einer Status-Pill, Ausstattung in zwei Gruppen (D36). Felder `handoverOn`, `moveInOn`, `moveOutOn`, Schemaversion 2. PDF gibt die Felder noch nicht aus (SM-20).
+- 2026-10-23 SM-19: Pflichtfelder, Chip nur offen↔OK, Status Nicht vorhanden, Mängel-Schalter entfällt, Mieter „Keine E-Mail“ (D39–D43). Schemaversion 3. PDF-Ausgabe von `na`, `noEmail`, `newAddress` und dreiwertiger Ausstattung bleibt SM-20.

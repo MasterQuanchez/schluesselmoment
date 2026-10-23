@@ -7,6 +7,7 @@ import {
   CONDITION_PHRASES,
   DEFECT_PHRASES,
   INVENTORY,
+  METER_LABEL,
   ROOM_TEMPLATES,
   type RoomTemplate,
   RULES,
@@ -42,7 +43,7 @@ export const emptyDefect = (): Defect => ({
   unitPriceCents: null,
 });
 
-const emptyParty = (): Party => ({ name: '', phone: '', email: '', newAddress: '' });
+const emptyParty = (): Party => ({ name: '', phone: '', email: '', noEmail: false, newAddress: '' });
 
 export function createProtocol(type: ProtocolType, now = new Date()): Protocol {
   const features = FeaturesSchema.parse({});
@@ -88,7 +89,7 @@ function emptyRoom(templateId: string, id: string, label: string): Room {
   const t = ROOM_TEMPLATES[templateId];
   if (!t) throw new Error(`Unbekannte Raumvorlage: ${templateId}`);
   const inventory: Room['inventory'] = {};
-  for (const item of t.inventory ?? []) inventory[item] = false;
+  for (const item of t.inventory ?? []) inventory[item] = null;
   return {
     id,
     templateId,
@@ -141,12 +142,10 @@ export function applyFeatures(p: Protocol, features: Features): Protocol {
 
 // ---------- Schnellerfassung ----------
 
-const NEXT: Record<CheckState, CheckState> = { open: 'ok', ok: 'defect', defect: 'open' };
-
-/** Chip antippen: OK ✓ → Mangel ⚠ → zurück. Mängel-Daten bleiben beim Zurücksetzen erhalten (kein Datenverlust durch Vertippen). */
+/** Chip antippen: nur offen ↔ OK. Mangel und Nicht vorhanden setzt das Sheet. */
 export function cycleCheck(room: Room, checkId: string): Room {
   const current = room.checks[checkId] ?? 'open';
-  return setCheck(room, checkId, NEXT[current]);
+  return setCheck(room, checkId, current === 'open' ? 'ok' : 'open');
 }
 
 export function setCheck(room: Room, checkId: string, state: CheckState): Room {
@@ -160,8 +159,8 @@ export function setCheck(room: Room, checkId: string, state: CheckState): Room {
 function deriveDecision(room: Room): RoomDecision {
   const states = Object.values(room.checks);
   if (states.includes('defect')) return 'defects';
-  // Kein Mangel (mehr) markiert: Entscheidung des Nutzers bleibt stehen
-  return room.decision;
+  if (states.length > 0 && states.every((state) => state === 'ok' || state === 'na')) return 'noDefects';
+  return 'open';
 }
 
 export type DecisionResult = { ok: true; room: Room } | { ok: false; reason: string };
@@ -231,17 +230,64 @@ export function defectPhrases(checkId: string, custom: readonly string[] = []): 
 export interface Issue {
   roomId?: string;
   checkId?: string;
+  /** DOM-id zum Scrollen und Fokussieren. */
+  fieldId?: string;
   message: string;
 }
 
 export interface RoomIssue {
   checkId: string;
-  kind: 'open' | 'missingDescription' | 'missingPhotos';
+  kind: 'open' | 'missingDescription' | 'missingPhotos' | 'missingDetail' | 'missingInventory';
   missingCount: number;
+  /** Attributname, wenn genau eine Angabe fehlt. */
+  detail?: string;
+}
+
+export type RuleFlags = {
+  requireDetails?: boolean;
+  requireContactFields?: boolean;
+};
+
+const INVENTORY_REQUIRED = new Set(['kitchenBasic', 'kitchenFitted', 'bathroom']);
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function flags(over?: RuleFlags) {
+  return {
+    requireDetails: over?.requireDetails ?? RULES.requireDetails,
+    requireContactFields: over?.requireContactFields ?? RULES.requireContactFields,
+  };
+}
+
+export function isValidEmail(value: string): boolean {
+  return EMAIL.test(value.trim());
+}
+
+/** Fehlende Attributnamen bei OK oder Mangel. Nicht vorhanden braucht keine Angaben. */
+export function missingAttributes(room: Room, checkId: string): string[] {
+  const state = room.checks[checkId];
+  if (state !== 'ok' && state !== 'defect') return [];
+  return (CHECKS[checkId]?.attributes ?? [])
+    .filter((attr) => !room.details[checkId]?.[attr.id])
+    .map((attr) => attr.label);
+}
+
+function inventoryMissing(room: Room): number {
+  if (!INVENTORY_REQUIRED.has(room.templateId)) return 0;
+  let count = 0;
+  for (const id of getTemplate(room).inventory ?? []) {
+    const item = INVENTORY[id];
+    if (!item) continue;
+    const value = room.inventory[id];
+    if (item.type === 'count') {
+      if (typeof value !== 'number') count += 1;
+    } else if (value !== true && value !== false) count += 1;
+  }
+  return count;
 }
 
 /** Offene Punkte und unvollständige Mängel. Beim Mangel steht das fehlende Foto vor der Beschreibung. */
-export function roomIssues(room: Room): RoomIssue[] {
+export function roomIssues(room: Room, over?: RuleFlags): RoomIssue[] {
+  const { requireDetails } = flags(over);
   const issues: RoomIssue[] = [];
   for (const [checkId, state] of Object.entries(room.checks)) {
     if (state === 'open') issues.push({ checkId, kind: 'open', missingCount: 0 });
@@ -253,15 +299,37 @@ export function roomIssues(room: Room): RoomIssue[] {
         issues.push({ checkId, kind: 'missingDescription', missingCount: 0 });
       }
     }
+    if (requireDetails) {
+      const labels = missingAttributes(room, checkId);
+      if (labels.length === 1) {
+        issues.push({ checkId, kind: 'missingDetail', missingCount: 1, detail: labels[0] });
+      } else if (labels.length > 1) {
+        issues.push({ checkId, kind: 'missingDetail', missingCount: labels.length });
+      }
+    }
+  }
+  const openInventory = inventoryMissing(room);
+  if (openInventory > 0) {
+    issues.push({ checkId: '', kind: 'missingInventory', missingCount: openInventory });
   }
   return issues;
 }
 
 /** Klartext mit Element und Grund. Die Foto-Zahl kommt aus dem Issue, nicht aus einer festen 2. */
-export function issueLabel(issue: RoomIssue): string {
+export function issueLabel(issue: RoomIssue, room?: Pick<Room, 'label'>): string {
+  if (issue.kind === 'missingInventory') {
+    const name = room?.label ?? 'Raum';
+    return issue.missingCount === 1
+      ? `${name}: 1 Ausstattungspunkt offen`
+      : `${name}: ${issue.missingCount} Ausstattungspunkte offen`;
+  }
   const name = CHECKS[issue.checkId]?.label ?? issue.checkId;
   if (issue.kind === 'open') return `${name}: noch nicht geprüft`;
   if (issue.kind === 'missingDescription') return `${name}: Beschreibung fehlt`;
+  if (issue.kind === 'missingDetail') {
+    if (issue.missingCount === 1 && issue.detail) return `${name}: ${issue.detail} fehlt`;
+    return `${name}: ${issue.missingCount} Angaben fehlen`;
+  }
   return issue.missingCount === 1 ? `${name}: 1 Foto fehlt` : `${name}: ${issue.missingCount} Fotos fehlen`;
 }
 
@@ -283,12 +351,16 @@ export function sheetCloseLabel(issue: RoomIssue): string {
       : `Schließen – ${issue.missingCount} Fotos fehlen noch`;
   }
   if (issue.kind === 'missingDescription') return 'Schließen – Beschreibung fehlt noch';
+  if (issue.kind === 'missingDetail') {
+    if (issue.missingCount === 1 && issue.detail) return `Schließen – ${issue.detail} fehlt noch`;
+    return `Schließen – ${issue.missingCount} Angaben fehlen noch`;
+  }
   return 'Schließen';
 }
 
 export function completeRoom(room: Room, now = new Date()): DecisionResult {
   const issues = roomIssues(room);
-  if (issues.length) return { ok: false, reason: issues.map(issueLabel).join(' · ') };
+  if (issues.length) return { ok: false, reason: issues.map((issue) => issueLabel(issue, room)).join(' · ') };
   return { ok: true, room: { ...room, completedAt: now.toISOString() } };
 }
 
@@ -319,13 +391,116 @@ export function inventoryGroups(ids: readonly string[]): { present: string[]; co
   return { present, counts };
 }
 
-export function protocolIssues(p: Protocol): Issue[] {
+/** Statuszeile unter dem Raumtitel. */
+export function roomHeadline(room: Room): string {
+  const states = Object.values(room.checks);
+  const open = states.filter((state) => state === 'open').length;
+  const defects = states.filter((state) => state === 'defect').length;
+  if (open === 1) return '1 offen';
+  if (open > 1) return `${open} offen`;
+  if (defects === 1) return '1 Mangel';
+  if (defects > 1) return `${defects} Mängel`;
+  return 'Keine Mängel';
+}
+
+export function protocolIssues(p: Protocol, over?: RuleFlags): Issue[] {
+  const { requireContactFields } = flags(over);
   const issues: Issue[] = [];
-  if (!p.property.street.trim()) issues.push({ message: 'Adresse fehlt' });
-  if (!p.landlord.name.trim()) issues.push({ message: 'Name Vermieter/Verwalter fehlt' });
-  if (!p.tenants.some((t) => t.name.trim())) issues.push({ message: 'Name Mieter fehlt' });
-  for (const r of p.rooms) {
-    if (!r.completedAt) issues.push({ roomId: r.id, message: `${r.label}: nicht abgeschlossen` });
+  const street = p.property.street.trim();
+  const postalCode = p.property.postalCode.trim();
+  const city = p.property.city.trim();
+  if (!street) issues.push({ fieldId: 'field-street', message: 'Straße fehlt' });
+  if (!postalCode) issues.push({ fieldId: 'field-postalCode', message: 'PLZ fehlt' });
+  else if (!/^\d{5}$/.test(postalCode))
+    issues.push({ fieldId: 'field-postalCode', message: 'PLZ: 5 Ziffern' });
+  if (!city) issues.push({ fieldId: 'field-city', message: 'Ort fehlt' });
+  if (!p.landlord.name.trim()) {
+    issues.push({ fieldId: 'field-landlord-name', message: 'Name Vermieter/Verwalter fehlt' });
+  }
+  p.tenants.forEach((tenant, index) => {
+    if (!tenant.name.trim())
+      issues.push({ fieldId: `field-tenant-${index}-name`, message: 'Name Mieter fehlt' });
+  });
+  for (const meter of p.meters) {
+    if (!meter.reading.trim()) {
+      issues.push({
+        fieldId: `field-meter-${meter.id}-reading`,
+        message: `${METER_LABEL[meter.kind].label}: Stand fehlt`,
+      });
+    }
+  }
+  const emailError = (value: string, fieldId: string, who: string) => {
+    if (value.trim() && !isValidEmail(value)) issues.push({ fieldId, message: `${who}: E-Mail ungültig` });
+  };
+  emailError(p.landlord.email, 'field-landlord-email', 'Vermieter/Verwalter');
+  p.tenants.forEach((tenant, index) => {
+    if (!tenant.noEmail) emailError(tenant.email, `field-tenant-${index}-email`, 'Mieter');
+  });
+  if (requireContactFields) {
+    if (!p.property.unit.trim()) issues.push({ fieldId: 'field-unit', message: 'Lage fehlt' });
+    if (!p.property.objectNumber.trim())
+      issues.push({ fieldId: 'field-objectNumber', message: 'Objekt-Nr. fehlt' });
+    if (!p.landlord.phone.trim()) {
+      issues.push({ fieldId: 'field-landlord-phone', message: 'Telefon Vermieter/Verwalter fehlt' });
+    }
+    if (!p.landlord.email.trim()) {
+      issues.push({ fieldId: 'field-landlord-email', message: 'E-Mail Vermieter/Verwalter fehlt' });
+    }
+    p.tenants.forEach((tenant, index) => {
+      if (!tenant.phone.trim())
+        issues.push({ fieldId: `field-tenant-${index}-phone`, message: 'Telefon Mieter fehlt' });
+      if (!tenant.noEmail && !tenant.email.trim()) {
+        issues.push({ fieldId: `field-tenant-${index}-email`, message: 'E-Mail Mieter fehlt' });
+      }
+    });
+  }
+  for (const room of p.rooms) {
+    if (!room.completedAt) issues.push({ roomId: room.id, message: `${room.label}: nicht abgeschlossen` });
+  }
+  return issues;
+}
+
+/** Hinweise, die den Abschluss nicht sperren. */
+export function recommendedIssues(p: Protocol, over?: RuleFlags): Issue[] {
+  const { requireDetails, requireContactFields } = flags(over);
+  const issues: Issue[] = [];
+  if (!requireContactFields) {
+    if (!p.property.unit.trim()) issues.push({ fieldId: 'field-unit', message: 'Lage fehlt' });
+    if (!p.property.objectNumber.trim())
+      issues.push({ fieldId: 'field-objectNumber', message: 'Objekt-Nr. fehlt' });
+    if (!p.landlord.phone.trim()) {
+      issues.push({ fieldId: 'field-landlord-phone', message: 'Telefon Vermieter/Verwalter fehlt' });
+    }
+    if (!p.landlord.email.trim()) {
+      issues.push({ fieldId: 'field-landlord-email', message: 'E-Mail Vermieter/Verwalter fehlt' });
+    }
+    p.tenants.forEach((tenant, index) => {
+      if (!tenant.phone.trim())
+        issues.push({ fieldId: `field-tenant-${index}-phone`, message: 'Telefon Mieter fehlt' });
+      if (!tenant.noEmail && !tenant.email.trim()) {
+        issues.push({ fieldId: `field-tenant-${index}-email`, message: 'E-Mail Mieter fehlt' });
+      }
+    });
+  }
+  if (!requireDetails) {
+    for (const room of p.rooms) {
+      for (const issue of roomIssues(room, { requireDetails: true })) {
+        if (issue.kind !== 'missingDetail') continue;
+        issues.push({ roomId: room.id, checkId: issue.checkId, message: issueLabel(issue, room) });
+      }
+    }
+  }
+  for (const meter of p.meters) {
+    const label = METER_LABEL[meter.kind].label;
+    if (!meter.number.trim()) {
+      issues.push({ fieldId: `field-meter-${meter.id}-number`, message: `${label}: Zählernummer fehlt` });
+    }
+    if (!meter.location.trim()) {
+      issues.push({ fieldId: `field-meter-${meter.id}-location`, message: `${label}: Ort fehlt` });
+    }
+    if (meter.photoIds.length === 0) {
+      issues.push({ fieldId: `field-meter-${meter.id}-photos`, message: `${label}: Foto fehlt` });
+    }
   }
   return issues;
 }

@@ -67,13 +67,36 @@ export function StepNav({
   );
 }
 
-export function Field({ label, children }: { label: string; children: ReactNode }) {
+export function Field({
+  label,
+  children,
+  required,
+  error,
+  id,
+  hint,
+}: {
+  label: string;
+  children: ReactNode;
+  required?: boolean;
+  error?: string;
+  id?: string;
+  hint?: string;
+}) {
   return (
     // The input is passed as children and rendered inside the label. Biome cannot see through children.
     // biome-ignore lint/a11y/noLabelWithoutControl: control is the child of this label
-    <label className="field">
-      <span>{label}</span>
+    <label className="field" id={id}>
+      <span>
+        {label}
+        {required ? ' *' : ''}
+        {hint ? <span className="muted"> ({hint})</span> : null}
+      </span>
       {children}
+      {error ? (
+        <p className="field-error" role="alert">
+          {error}
+        </p>
+      ) : null}
     </label>
   );
 }

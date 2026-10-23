@@ -38,6 +38,11 @@
 | D36 | 23.10.2026 | Unterschrift nennt den fehlenden Grund; Übergabe am plus optionales Einzug- oder Auszugsdatum | Der gesperrte Knopf sagt „Noch 1 Unterschrift fehlt“. `handoverOn` ist Pflicht (bestehende Protokolle: Kalendertag von `createdAt`). `moveInOn` nur bei Übergabe, `moveOutOn` nur bei Abnahme. Schemaversion 2. | Entschieden |
 | D37 | 23.10.2026 | PDF: Jakarta (Überschriften) + Inter (Text), statisch eingebettet, tnum eingefroren | Plus Jakarta Sans SemiBold für Titel, Raumüberschriften und Kennzahlen. Inter Regular/Medium/SemiBold für Text und Tabellen. Statische TTFs, tabellarische Ziffern eingefroren, auf Latein zugeschnitten. Fehlt die Schrift, Helvetica, nie Times. | Entschieden |
 | D38 | 23.10.2026 | PDF-Layout „Auf einen Blick“ + Prüfsumme statt Versiegelt | Seite 1 mit Kennzahlen und Mängelübersicht (Seitenzahlen im zweiten Durchlauf). Unten die Prüfsumme als SHA-256, kein QR-Code. | Entschieden |
+| D39 | 23.10.2026 | Pflicht inkl. Details, Kontakt und Ausstattung (Fachseite 23.10.) | Blockierend: offene Elemente, Mangel ohne Foto oder Beschreibung, Straße, PLZ (5 Ziffern), Ort, Namen, Zählerstand, gültige E-Mail, dazu bei `requireDetails` alle Angaben und bei `requireContactFields` Lage, Objekt-Nr., Telefon und E-Mail. Küche und Bad: jeder Ausstattungspunkt. Zählernummer, Zählerort und Zählerfoto bleiben Empfehlung. | Entschieden (Moritz, 23.10.) |
+| D40 | 23.10.2026 | Status „Nicht vorhanden“ | `CheckState` kennt `na`. Dafür braucht es keine Angaben. Schemaversion 3. | Entschieden (Moritz, 23.10.) |
+| D41 | 23.10.2026 | Chip = offen↔OK, Mangel nur im ⓘ-Sheet | Der Chip wechselt nur offen und OK. Fehlen Angaben, öffnet sich das Sheet mit „In Ordnung“. Mangel und Nicht vorhanden setzt nur das Sheet. | Entschieden |
+| D42 | 23.10.2026 | Mängel-Schalter entfällt | „Gibt es Mängel?“ kommt weg. Die Raum-Entscheidung folgt aus den Elementen. Unter dem Titel steht die Statuszeile. | Entschieden |
+| D43 | 23.10.2026 | Mieter „Keine E-Mail“ | Haken `noEmail`: die E-Mail dieses Mieters ist keine Pflicht. Beim Senden steht der Hinweis, die Adresse im Mailprogramm zu ergänzen. „Neue Adresse (nach Auszug)“ nur bei Abnahme, freiwillig. | Entschieden (Moritz, 23.10.) |
 
 D19/D20 bewusst nicht vergeben (SM-01).
 

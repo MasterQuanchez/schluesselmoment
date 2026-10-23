@@ -204,6 +204,20 @@
   border-color: var(--c-defect-mark);
   color: var(--c-defect);
 }
+.decision--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.decision--three button {
+  font-size: var(--fs-sm);
+  white-space: normal;
+  text-align: center;
+  padding: var(--sp-2);
+}
+.decision button[aria-pressed="true"][data-kind="na"] {
+  background: var(--c-surface-2);
+  border-color: var(--c-border);
+  color: var(--c-text-muted);
+}
 
 /* Chips */
 .chips {
@@ -241,6 +255,11 @@
   background: var(--c-defect-soft);
   border-color: var(--c-defect-mark);
   color: var(--c-defect);
+}
+.chip[data-state="na"] {
+  background: var(--c-surface-2);
+  border-color: var(--c-border);
+  color: var(--c-text-muted);
 }
 .chip__mark {
   display: inline-grid;
@@ -525,6 +544,11 @@
   font-weight: var(--fw-medium);
   color: var(--c-text-muted);
 }
+.field-error {
+  margin: 0;
+  color: var(--theme-current-color-text-warning);
+  font-size: var(--fs-sm);
+}
 .input,
 .textarea,
 .select {
@@ -799,6 +823,9 @@ details.more > summary::-webkit-details-marker {
   font-size: var(--fs-sm);
   font-weight: var(--fw-semibold);
   color: var(--theme-current-color-text-medium);
+}
+.attr-row--missing > b {
+  color: var(--theme-current-color-text-warning);
 }
 @media (max-width: 359px) {
   .attr-row {

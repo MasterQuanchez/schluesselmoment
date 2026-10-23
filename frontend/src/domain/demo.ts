@@ -2,14 +2,14 @@
  * Fertiges Beispielprotokoll für Vorführung und Test von Unterschrift und PDF.
  * Reine Fachlogik: Fotos setzt die Oberfläche, danach wird die Küche abgeschlossen.
  */
-import { CONDITION_PHRASES } from './catalog';
+import { CHECKS, CONDITION_PHRASES, INVENTORY } from './catalog';
 import {
   appendPhrase,
   applyFeatures,
   completeRoom,
   confirmAllChecks,
   createProtocol,
-  markNoDefects,
+  getTemplate,
   newId,
   setCheck,
   setDetail,
@@ -21,12 +21,25 @@ const DEMO_NOTE = 'DEMO – kein echtes Protokoll';
 const OVEN_DEFECT = 'Backofen verschmutzt, eingebrannte Fettreste';
 
 function withDetails(room: Room): Room {
-  let next = room;
-  if ('walls' in next.checks) next = setDetail(next, 'walls', 'paint', 'new');
-  if ('floor' in next.checks) next = setDetail(next, 'floor', 'type', 'parquet');
-  if ('ceiling' in next.checks) next = setDetail(next, 'ceiling', 'paint', 'new');
-  else if ('door' in next.checks) next = setDetail(next, 'door', 'paint', 'new');
+  let next = confirmAllChecks(room);
+  for (const [id, state] of Object.entries(next.checks)) {
+    if (state !== 'ok' && state !== 'defect') continue;
+    for (const attr of CHECKS[id]?.attributes ?? []) {
+      const option = attr.options[0];
+      if (option) next = setDetail(next, id, attr.id, option.id);
+    }
+  }
   return next;
+}
+
+function withInventory(room: Room): Room {
+  const inventory = { ...room.inventory };
+  for (const id of getTemplate(room).inventory ?? []) {
+    const item = INVENTORY[id];
+    if (!item) continue;
+    inventory[id] = item.type === 'count' ? 1 : true;
+  }
+  return { ...room, inventory };
 }
 
 function withPhrase(room: Room): Room {
@@ -48,20 +61,11 @@ function keyCount(kind: Protocol['keys'][number]['kind']): number | undefined {
 }
 
 function fillRoom(room: Room, now: Date): Room {
-  let next = withPhrase(withDetails(confirmAllChecks(room)));
+  const next = withPhrase(withInventory(withDetails(room)));
   if (room.id === 'kitchen') {
-    next = {
-      ...next,
-      inventory: { ...next.inventory, oven: true, hob: true, fridge: true, sink: true, hood: true },
-    };
-    next = updateDefect(setCheck(next, 'oven', 'defect'), 'oven', { description: OVEN_DEFECT });
-    return next;
+    return updateDefect(setCheck(next, 'oven', 'defect'), 'oven', { description: OVEN_DEFECT });
   }
-  if (room.templateId === 'bathroom') {
-    next = { ...next, inventory: { ...next.inventory, washbasin: 1 } };
-  }
-  const marked = markNoDefects(next);
-  const done = completeRoom(marked.ok ? marked.room : next, now);
+  const done = completeRoom(next, now);
   if (!done.ok) throw new Error(`${room.label}: ${done.reason}`);
   return done.room;
 }
@@ -84,14 +88,24 @@ export function createDemoProtocol(now = new Date()): Protocol {
       postalCode: '70173',
       city: 'Stuttgart',
       unit: '2. OG links',
+      objectNumber: '12',
     },
     landlord: {
       name: 'Hausverwaltung Muster GmbH',
-      phone: '',
+      phone: '0711 123456',
       email: 'verwaltung@example.org',
+      noEmail: false,
       newAddress: '',
     },
-    tenants: [{ name: 'Anna Muster', phone: '', email: 'anna@example.org', newAddress: '' }],
+    tenants: [
+      {
+        name: 'Anna Muster',
+        phone: '0711 654321',
+        email: 'anna@example.org',
+        noEmail: false,
+        newAddress: 'Neue Straße 2, 70174 Stuttgart',
+      },
+    ],
     rooms: base.rooms.map((room) => fillRoom(room, now)),
     meters: [
       {

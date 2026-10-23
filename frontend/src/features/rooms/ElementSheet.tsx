@@ -44,18 +44,12 @@ export function ElementSheet({
   const def = CHECKS[checkId];
   const state = room.checks[checkId] ?? 'open';
   const defect = room.defects[checkId] ?? emptyDefect();
-  const [detailsOpen, setDetailsOpen] = useState(state !== 'defect');
   const [morePhrases, setMorePhrases] = useState(false);
   const phrases = defectPhrases(checkId, custom);
   const visiblePhrases = morePhrases ? phrases : phrases.slice(0, DEFECT_PHRASE_PREVIEW);
-  const pending =
-    state === 'defect' ? roomIssues(room).find((issue) => issue.checkId === checkId) : undefined;
+  const pending = roomIssues(room).find((issue) => issue.checkId === checkId && issue.kind !== 'open');
   const photoCount = defect.photoIds.length;
   const photosEnough = photoCount >= RULES.minPhotosPerDefect;
-
-  useEffect(() => {
-    setDetailsOpen(state !== 'defect');
-  }, [state]);
 
   useEffect(() => {
     const root = dialogRef.current;
@@ -108,7 +102,7 @@ export function ElementSheet({
             {def?.label ?? checkId}
           </h2>
           {def?.hint ? <p className="hint">{def.hint}</p> : null}
-          <div className="decision">
+          <div className="decision decision--three">
             <button
               type="button"
               data-kind="ok"
@@ -126,6 +120,15 @@ export function ElementSheet({
               onClick={() => onChange((r) => setCheck(r, checkId, 'defect'))}
             >
               <Icon name="alert" size={18} /> Mangel
+            </button>
+            <button
+              type="button"
+              data-kind="na"
+              aria-pressed={state === 'na'}
+              disabled={locked}
+              onClick={() => onChange((r) => setCheck(r, checkId, 'na'))}
+            >
+              – Nicht vorhanden
             </button>
           </div>
           {state === 'defect' ? (
@@ -186,33 +189,32 @@ export function ElementSheet({
               </div>
             </>
           ) : null}
-          {def?.attributes?.length ? (
-            <details
-              className="more"
-              open={detailsOpen}
-              onToggle={(e) => setDetailsOpen(e.currentTarget.open)}
-            >
-              <summary>Details (optional): {def.attributes.map((attr) => attr.label).join(', ')}</summary>
-              {def.attributes.map((attr) => (
-                <div key={attr.id} className="attr-row">
-                  <b>{attr.label}</b>
-                  <div className="chips">
-                    {attr.options.map((option) => (
-                      <button
-                        key={option.id}
-                        type="button"
-                        className="chip chip--option"
-                        disabled={locked}
-                        aria-pressed={room.details[checkId]?.[attr.id] === option.id}
-                        onClick={() => onChange((r) => setDetail(r, checkId, attr.id, option.id))}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
+          {def?.attributes?.length && (state === 'ok' || state === 'defect') ? (
+            <section className="stack" aria-label="Angaben">
+              <h3 className="subhead">Angaben</h3>
+              {def.attributes.map((attr) => {
+                const missing = !room.details[checkId]?.[attr.id];
+                return (
+                  <div key={attr.id} className={missing ? 'attr-row attr-row--missing' : 'attr-row'}>
+                    <b>{attr.label}</b>
+                    <div className="chips">
+                      {attr.options.map((option) => (
+                        <button
+                          key={option.id}
+                          type="button"
+                          className="chip chip--option"
+                          disabled={locked}
+                          aria-pressed={room.details[checkId]?.[attr.id] === option.id}
+                          onClick={() => onChange((r) => setDetail(r, checkId, attr.id, option.id))}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </details>
+                );
+              })}
+            </section>
           ) : null}
         </div>
         <div className="sheet__foot">

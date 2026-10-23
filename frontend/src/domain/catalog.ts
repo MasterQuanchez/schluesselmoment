@@ -443,6 +443,10 @@ export const RULES = {
   minPhotosPerDefect: 1,
   /** Mangel braucht eine Beschreibung */
   defectNeedsDescription: true,
+  /** Fachseite 23.10.: alle Angaben (Anstrich, Belag, …) sind Pflicht, sobald der Punkt OK oder Mangel ist. */
+  requireDetails: true,
+  /** Fachseite 23.10.: Lage, Objekt-Nr., Telefon und E-Mail sind Pflicht. */
+  requireContactFields: true,
   maxPhotoEdgePx: 1600,
   photoJpegQuality: 0.8,
 } as const;

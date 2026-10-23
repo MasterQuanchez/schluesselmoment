@@ -1,5 +1,6 @@
-import { PROTOCOL_TYPE_LABEL } from '@/domain/catalog';
-import { applyFeatures } from '@/domain/protocol';
+import { useEffect, useState } from 'react';
+import { PROTOCOL_TYPE_LABEL, RULES } from '@/domain/catalog';
+import { applyFeatures, protocolIssues } from '@/domain/protocol';
 import type { Features, Party, Protocol } from '@/domain/schema';
 import { href } from '@/router';
 import { useProtocol } from '@/storage/useProtocol';
@@ -10,47 +11,111 @@ function PartyFields({
   onChange,
   prefix,
   disabled,
+  idPrefix,
+  errorFor,
+  onBlur,
+  tenant,
+  showNewAddress,
+  contactRequired,
 }: {
   value: Party;
   onChange: (p: Party) => void;
   prefix: string;
   disabled: boolean;
+  idPrefix: string;
+  errorFor: (fieldId: string) => string | undefined;
+  onBlur: (fieldId: string) => () => void;
+  tenant: boolean;
+  showNewAddress: boolean;
+  contactRequired: boolean;
 }) {
   const set = (k: keyof Party) => (e: React.ChangeEvent<HTMLInputElement>) =>
     onChange({ ...value, [k]: e.currentTarget.value });
+  const nameId = `${idPrefix}-name`;
+  const phoneId = `${idPrefix}-phone`;
+  const emailId = `${idPrefix}-email`;
+  const skipEmail = tenant && value.noEmail;
   return (
     <fieldset className="stack" style={{ border: 0, padding: 0, margin: 0 }} disabled={disabled}>
-      <Field label={`${prefix}: Name`}>
-        <input className="input" autoComplete="off" value={value.name} onChange={set('name')} />
+      <Field label={`${prefix}: Name`} required id={nameId} error={errorFor(nameId)}>
+        <input
+          className="input"
+          autoComplete="name"
+          enterKeyHint="next"
+          value={value.name}
+          onChange={set('name')}
+          onBlur={onBlur(nameId)}
+        />
       </Field>
       <div className="grid-2">
-        <Field label="Telefon">
+        <Field label="Telefon" required={contactRequired} id={phoneId} error={errorFor(phoneId)}>
           <input
             className="input"
             type="tel"
             inputMode="tel"
-            autoComplete="off"
+            autoComplete="tel"
+            enterKeyHint="next"
             value={value.phone}
             onChange={set('phone')}
+            onBlur={onBlur(phoneId)}
           />
         </Field>
-        <Field label="E-Mail">
+        <Field
+          label="E-Mail"
+          required={contactRequired && !skipEmail}
+          id={emailId}
+          error={skipEmail ? undefined : errorFor(emailId)}
+        >
           <input
             className="input"
             type="email"
             inputMode="email"
-            autoComplete="off"
+            autoComplete="email"
+            enterKeyHint="next"
             value={value.email}
+            disabled={skipEmail}
             onChange={set('email')}
+            onBlur={onBlur(emailId)}
           />
         </Field>
       </div>
+      {tenant ? (
+        <label className="switch-row">
+          <input
+            type="checkbox"
+            checked={value.noEmail}
+            onChange={(e) => onChange({ ...value, noEmail: e.currentTarget.checked })}
+          />
+          Keine E-Mail-Adresse
+        </label>
+      ) : null}
+      {showNewAddress ? (
+        <Field label="Neue Adresse (nach Auszug)">
+          <input
+            className="input"
+            autoComplete="street-address"
+            enterKeyHint="next"
+            value={value.newAddress}
+            onChange={set('newAddress')}
+          />
+        </Field>
+      ) : null}
     </fieldset>
   );
 }
 
-export function BasisScreen({ id }: { id: string }) {
+export function BasisScreen({ id, focus }: { id: string; focus?: string }) {
   const { state, update } = useProtocol();
+  const [reveal, setReveal] = useState(false);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    if (!focus) return;
+    setReveal(true);
+    setTouched((prev) => ({ ...prev, [focus]: true }));
+    const el = document.getElementById(focus);
+    el?.scrollIntoView({ block: 'center' });
+    el?.querySelector<HTMLElement>('input, textarea, select')?.focus();
+  }, [focus]);
   if (state.status !== 'ready') return <Loading state={state} />;
   const p = state.protocol;
   const locked = p.status !== 'draft';
@@ -61,6 +126,14 @@ export function BasisScreen({ id }: { id: string }) {
   const feat = <K extends keyof Features>(k: K, v: Features[K]) =>
     update((x) => applyFeatures(x, { ...x.features, [k]: v }));
   const f = p.features;
+  const contactRequired = RULES.requireContactFields;
+  const messages = new Map(
+    protocolIssues(p)
+      .filter((issue) => issue.fieldId && !issue.fieldId.startsWith('field-meter-'))
+      .map((issue) => [issue.fieldId as string, issue.message]),
+  );
+  const errorFor = (fieldId: string) => (reveal || touched[fieldId] ? messages.get(fieldId) : undefined);
+  const mark = (fieldId: string) => () => setTouched((prev) => ({ ...prev, [fieldId]: true }));
 
   return (
     <>
@@ -72,33 +145,68 @@ export function BasisScreen({ id }: { id: string }) {
 
         <h2 className="section-title">Objekt</h2>
         <fieldset className="stack" style={{ border: 0, padding: 0, margin: 0 }} disabled={locked}>
-          <Field label="Straße und Nr.">
-            <input className="input" autoComplete="off" value={p.property.street} onChange={prop('street')} />
+          <Field label="Straße und Nr." required id="field-street" error={errorFor('field-street')}>
+            <input
+              className="input"
+              autoComplete="street-address"
+              enterKeyHint="next"
+              value={p.property.street}
+              onChange={prop('street')}
+              onBlur={mark('field-street')}
+            />
           </Field>
           <div className="grid-2">
-            <Field label="PLZ">
+            <Field label="PLZ" required id="field-postalCode" error={errorFor('field-postalCode')}>
               <input
                 className="input"
                 inputMode="numeric"
-                autoComplete="off"
+                autoComplete="postal-code"
+                enterKeyHint="next"
                 value={p.property.postalCode}
                 onChange={prop('postalCode')}
+                onBlur={mark('field-postalCode')}
               />
             </Field>
-            <Field label="Ort">
-              <input className="input" autoComplete="off" value={p.property.city} onChange={prop('city')} />
+            <Field label="Ort" required id="field-city" error={errorFor('field-city')}>
+              <input
+                className="input"
+                autoComplete="address-level2"
+                enterKeyHint="next"
+                value={p.property.city}
+                onChange={prop('city')}
+                onBlur={mark('field-city')}
+              />
             </Field>
           </div>
           <div className="grid-2">
-            <Field label="Lage (z. B. 2. OG links)">
-              <input className="input" autoComplete="off" value={p.property.unit} onChange={prop('unit')} />
-            </Field>
-            <Field label="Objekt-Nr.">
+            <Field
+              label="Lage (z. B. 2. OG links)"
+              required={contactRequired}
+              id="field-unit"
+              error={errorFor('field-unit')}
+            >
               <input
                 className="input"
                 autoComplete="off"
+                enterKeyHint="next"
+                value={p.property.unit}
+                onChange={prop('unit')}
+                onBlur={mark('field-unit')}
+              />
+            </Field>
+            <Field
+              label="Objekt-Nr."
+              required={contactRequired}
+              id="field-objectNumber"
+              error={errorFor('field-objectNumber')}
+            >
+              <input
+                className="input"
+                autoComplete="off"
+                enterKeyHint="next"
                 value={p.property.objectNumber}
                 onChange={prop('objectNumber')}
+                onBlur={mark('field-objectNumber')}
               />
             </Field>
           </div>
@@ -239,6 +347,12 @@ export function BasisScreen({ id }: { id: string }) {
           prefix="Vermieter/Verwalter"
           value={p.landlord}
           disabled={locked}
+          idPrefix="field-landlord"
+          errorFor={errorFor}
+          onBlur={mark}
+          tenant={false}
+          showNewAddress={false}
+          contactRequired={contactRequired}
           onChange={(landlord) => update((x) => ({ ...x, landlord }))}
         />
         {p.tenants.map((t, i) => (
@@ -248,6 +362,12 @@ export function BasisScreen({ id }: { id: string }) {
             prefix={p.tenants.length > 1 ? `Mieter ${i + 1}` : 'Mieter'}
             value={t}
             disabled={locked}
+            idPrefix={`field-tenant-${i}`}
+            errorFor={errorFor}
+            onBlur={mark}
+            tenant
+            showNewAddress={p.type === 'abnahme'}
+            contactRequired={contactRequired}
             onChange={(tenant) =>
               update((x) => ({ ...x, tenants: x.tenants.map((y, j) => (j === i ? tenant : y)) }))
             }
@@ -261,7 +381,7 @@ export function BasisScreen({ id }: { id: string }) {
               onClick={() =>
                 update((x) => ({
                   ...x,
-                  tenants: [...x.tenants, { name: '', phone: '', email: '', newAddress: '' }],
+                  tenants: [...x.tenants, { name: '', phone: '', email: '', noEmail: false, newAddress: '' }],
                 }))
               }
             >
@@ -281,7 +401,20 @@ export function BasisScreen({ id }: { id: string }) {
       </main>
       <div className="bottombar">
         <div className="bottombar__inner">
-          <a className="btn btn--primary btn--block" href={href({ name: 'rooms', id })}>
+          <a
+            className="btn btn--primary btn--block"
+            href={href({ name: 'rooms', id })}
+            onClick={(e) => {
+              if (messages.size === 0 || reveal) return;
+              e.preventDefault();
+              setReveal(true);
+              const first = messages.keys().next().value;
+              if (!first) return;
+              const el = document.getElementById(first);
+              el?.scrollIntoView({ block: 'center' });
+              el?.querySelector<HTMLElement>('input, textarea')?.focus();
+            }}
+          >
             Weiter zu den Räumen
           </a>
         </div>

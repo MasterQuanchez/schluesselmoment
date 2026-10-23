@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFECT_PHRASE_PREVIEW, ROOM_TEMPLATES, RULES } from '@/domain/catalog';
+import { CHECKS, DEFECT_PHRASE_PREVIEW, INVENTORY, ROOM_TEMPLATES, RULES } from '@/domain/catalog';
 import {
   addSignature,
   allSigned,
@@ -16,17 +16,21 @@ import {
   cycleCheck,
   defectPhrases,
   deletionDate,
+  getTemplate,
   inventoryGroups,
   isExpired,
   issueLabel,
   localIsoDate,
   mailRecipients,
   markNoDefects,
+  missingAttributes,
   missingSignatureLabel,
   photoCountLabel,
   photoStatusLabel,
   protocolIssues,
+  recommendedIssues,
   requiredSigners,
+  roomHeadline,
   roomIssues,
   roomStatusLabel,
   sealProtocol,
@@ -36,20 +40,53 @@ import {
   startSigning,
   updateDefect,
 } from '@/domain/protocol';
-import { Features, Protocol } from '@/domain/schema';
+import { Features, Protocol, type Room } from '@/domain/schema';
 
 const PNG = 'data:image/png;base64,iVBORw0KGgo=';
+
+function answerRoom(room: Room): Room {
+  let next = confirmAllChecks(room);
+  for (const [id, state] of Object.entries(next.checks)) {
+    if (state !== 'ok' && state !== 'defect') continue;
+    for (const attr of CHECKS[id]?.attributes ?? []) {
+      const option = attr.options[0];
+      if (option) next = setDetail(next, id, attr.id, option.id);
+    }
+  }
+  const inventory = { ...next.inventory };
+  for (const id of getTemplate(next).inventory ?? []) {
+    const item = INVENTORY[id];
+    if (!item) continue;
+    inventory[id] = item.type === 'count' ? 1 : true;
+  }
+  return { ...next, inventory };
+}
 
 function filled(): Protocol {
   let p = createProtocol('uebergabe', new Date('2026-10-22T10:00:00Z'));
   p = {
     ...p,
-    property: { ...p.property, street: 'Musterstraße 1', city: 'Stuttgart' },
-    landlord: { ...p.landlord, name: 'Verwaltung' },
-    tenants: [{ name: 'Anna Muster', phone: '', email: '', newAddress: '' }],
+    property: {
+      ...p.property,
+      street: 'Musterstraße 1',
+      postalCode: '70173',
+      city: 'Stuttgart',
+      unit: '1. OG',
+      objectNumber: '7',
+    },
+    landlord: { ...p.landlord, name: 'Verwaltung', phone: '0711 111', email: 'v@example.org' },
+    tenants: [
+      {
+        name: 'Anna Muster',
+        phone: '0711 222',
+        email: 'anna@example.org',
+        noEmail: false,
+        newAddress: '',
+      },
+    ],
   };
   const rooms = p.rooms.map((r) => {
-    const done = completeRoom(confirmAllChecks(r));
+    const done = completeRoom(answerRoom(r));
     if (!done.ok) throw new Error(done.reason);
     return done.room;
   });
@@ -109,16 +146,25 @@ describe('Schnellerfassung', () => {
     return r;
   };
 
-  it('Chip-Zyklus: offen → OK → Mangel → offen', () => {
+  it('Chip-Zyklus nur offen ↔ OK; Mangel und Nicht vorhanden nur über setCheck', () => {
     let r = room();
     r = cycleCheck(r, 'walls');
     expect(r.checks.walls).toBe('ok');
+    expect(r.decision).toBe('open');
     r = cycleCheck(r, 'walls');
+    expect(r.checks.walls).toBe('open');
+    r = setCheck(r, 'walls', 'defect');
     expect(r.checks.walls).toBe('defect');
     expect(r.decision).toBe('defects');
     expect(r.defects.walls).toBeTruthy();
     r = cycleCheck(r, 'walls');
     expect(r.checks.walls).toBe('open');
+    expect(r.defects.walls).toBeTruthy();
+    r = setCheck(r, 'walls', 'na');
+    expect(r.checks.walls).toBe('na');
+    expect(missingAttributes(r, 'walls')).toEqual([]);
+    const allNa = Object.keys(r.checks).reduce((acc, id) => setCheck(acc, id, 'na'), r);
+    expect(allNa.decision).toBe('noDefects');
   });
 
   it('Keine Mängel setzt nur die Entscheidung – jeder Punkt bleibt einzeln zu bestätigen', () => {
@@ -131,7 +177,7 @@ describe('Schnellerfassung', () => {
   });
 
   it('Keine Mängel ist gesperrt, solange ein Mangel markiert ist', () => {
-    const r = cycleCheck(cycleCheck(room(), 'floor'), 'floor');
+    const r = setCheck(room(), 'floor', 'defect');
     expect(markNoDefects(r).ok).toBe(false);
   });
 
@@ -144,7 +190,7 @@ describe('Schnellerfassung', () => {
   });
 
   it('Detail an einem Mangel lässt den Mangel stehen', () => {
-    const defect = cycleCheck(cycleCheck(room(), 'floor'), 'floor');
+    const defect = setCheck(room(), 'floor', 'defect');
     const next = setDetail(defect, 'floor', 'type', 'parquet');
     expect(next.checks.floor).toBe('defect');
     expect(next.details.floor?.type).toBe('parquet');
@@ -158,7 +204,7 @@ describe('Schnellerfassung', () => {
   });
 
   it('Mangel braucht Beschreibung und Mindestanzahl Fotos', () => {
-    let x = cycleCheck(confirmAllChecks(room()), 'floor'); // ok → defect
+    let x = setCheck(answerRoom(room()), 'floor', 'defect');
     expect(completeRoom(x).ok).toBe(false);
     x = updateDefect(x, 'floor', { description: 'Kratzer im Parkett', photoIds: ['a'] });
     expect(completeRoom(x).ok).toBe(RULES.minPhotosPerDefect <= 1);
@@ -190,7 +236,7 @@ describe('Schnellerfassung', () => {
     expect(photoStatusLabel(2, 2)).toBe('✓ 2 Fotos');
 
     const defect = setCheck(confirmAllChecks(room()), 'walls', 'defect');
-    const open = roomIssues(defect);
+    const open = roomIssues(defect, { requireDetails: false });
     const firstOpen = open[0];
     if (!firstOpen) throw new Error('Issue fehlt');
     expect(open.map((issue) => issue.kind)).toEqual(['missingPhotos', 'missingDescription']);
@@ -198,7 +244,9 @@ describe('Schnellerfassung', () => {
     expect(issueLabel(firstOpen)).toContain('Wände:');
 
     const missing = RULES.minPhotosPerDefect - 1;
-    const first = roomIssues(updateDefect(defect, 'walls', { photoIds: ['a'] }))[0];
+    const first = roomIssues(updateDefect(defect, 'walls', { photoIds: ['a'] }), {
+      requireDetails: false,
+    })[0];
     if (!first) throw new Error('Issue fehlt');
     if (missing > 0) {
       expect(first).toMatchObject({ checkId: 'walls', kind: 'missingPhotos', missingCount: missing });
@@ -284,7 +332,7 @@ describe('Daten und Status', () => {
     expect(p.handoverOn).toBe(localIsoDate(now));
     expect(p.moveInOn).toBe('');
     expect(p.moveOutOn).toBe('');
-    expect(p.schemaVersion).toBe(2);
+    expect(p.schemaVersion).toBe(3);
   });
 
   it('nennt die Raum-Pill nur bei erledigten Räumen', () => {
@@ -310,6 +358,103 @@ describe('Daten und Status', () => {
     expect(inventoryGroups(['fehlt'])).toEqual({ present: [], counts: [] });
   });
 
+  it('nennt fehlende Angaben und Ausstattung', () => {
+    const hallway = buildRooms(Features.parse({}))[0];
+    if (!hallway) throw new Error('kein Raum');
+    const walls = setCheck(hallway, 'walls', 'ok');
+    const both = roomIssues(walls).find((issue) => issue.checkId === 'walls');
+    expect(both).toMatchObject({ kind: 'missingDetail', missingCount: 2 });
+    expect(issueLabel(both ?? { checkId: 'walls', kind: 'missingDetail', missingCount: 2 })).toBe(
+      'Wände: 2 Angaben fehlen',
+    );
+    const one = setDetail(walls, 'walls', 'paint', 'new');
+    const left = roomIssues(one).find((issue) => issue.checkId === 'walls');
+    expect(issueLabel(left ?? { checkId: 'walls', kind: 'missingDetail', missingCount: 1 })).toBe(
+      'Wände: Oberfläche fehlt',
+    );
+    expect(
+      sheetCloseLabel(
+        left ?? { checkId: 'walls', kind: 'missingDetail', missingCount: 1, detail: 'Oberfläche' },
+      ),
+    ).toBe('Schließen – Oberfläche fehlt noch');
+    expect(roomIssues(walls, { requireDetails: false }).some((issue) => issue.kind === 'missingDetail')).toBe(
+      false,
+    );
+
+    const bath = buildRooms(Features.parse({})).find((r) => r.id === 'bath');
+    if (!bath) throw new Error('Bad fehlt');
+    const openInventory = roomIssues(confirmAllChecks(bath)).find(
+      (issue) => issue.kind === 'missingInventory',
+    );
+    expect(openInventory?.missingCount).toBe(11);
+    expect(
+      issueLabel(openInventory ?? { checkId: '', kind: 'missingInventory', missingCount: 11 }, bath),
+    ).toBe('Bad: 11 Ausstattungspunkte offen');
+    const oneAnswered = { ...bath, inventory: { ...bath.inventory, mirror: false } };
+    expect(roomIssues(oneAnswered).find((issue) => issue.kind === 'missingInventory')?.missingCount).toBe(10);
+    const guest = buildRooms(Features.parse({ guestWc: true })).find((r) => r.id === 'guestWc');
+    if (!guest) throw new Error('Gäste-WC fehlt');
+    expect(roomIssues(confirmAllChecks(guest)).some((issue) => issue.kind === 'missingInventory')).toBe(
+      false,
+    );
+  });
+
+  it('Statuszeile: offen vor Mängeln, sonst keine Mängel', () => {
+    const hallway = buildRooms(Features.parse({}))[0];
+    if (!hallway) throw new Error('kein Raum');
+    let r = hallway;
+    expect(roomHeadline(r)).toBe(`${Object.keys(r.checks).length} offen`);
+    r = setCheck(r, 'walls', 'defect');
+    expect(roomHeadline(r)).toMatch(/offen$/);
+    r = Object.keys(r.checks).reduce((acc, id) => setCheck(acc, id, id === 'walls' ? 'defect' : 'ok'), r);
+    expect(roomHeadline(r)).toBe('1 Mangel');
+    r = Object.keys(r.checks).reduce((acc, id) => setCheck(acc, id, 'na'), r);
+    expect(roomHeadline(r)).toBe('Keine Mängel');
+  });
+
+  it('Pflichtfelder blockieren, Empfehlungen nicht; Keine E-Mail lässt die Mieter-Mail weg', () => {
+    const base = createProtocol('abnahme');
+    const tenant = base.tenants[0];
+    if (!tenant) throw new Error('Mieter fehlt');
+    const named = {
+      ...base,
+      property: { ...base.property, street: 'Musterstraße 1', postalCode: '12', city: 'Stuttgart' },
+      landlord: { ...base.landlord, name: 'Verwaltung', email: 'kaputt' },
+      tenants: [{ ...tenant, name: 'Anna' }],
+      meters: [
+        { id: 'm1', kind: 'electricity' as const, number: '', reading: '', location: '', photoIds: [] },
+      ],
+    };
+    const meter = named.meters[0];
+    if (!meter) throw new Error('Zähler fehlt');
+    const messages = protocolIssues(named).map((issue) => issue.message);
+    expect(messages).toContain('PLZ: 5 Ziffern');
+    expect(messages).toContain('Vermieter/Verwalter: E-Mail ungültig');
+    expect(messages).toContain('Lage fehlt');
+    expect(messages).toContain('Strom: Stand fehlt');
+    expect(messages).not.toContain('Strom: Zählernummer fehlt');
+    expect(recommendedIssues(named).map((issue) => issue.message)).toEqual([
+      'Strom: Zählernummer fehlt',
+      'Strom: Ort fehlt',
+      'Strom: Foto fehlt',
+    ]);
+
+    const relaxed = protocolIssues(named, { requireContactFields: false }).map((issue) => issue.message);
+    expect(relaxed).not.toContain('Lage fehlt');
+    expect(recommendedIssues(named, { requireContactFields: false }).map((issue) => issue.message)).toContain(
+      'Lage fehlt',
+    );
+
+    const noMail = {
+      ...named,
+      property: { ...named.property, postalCode: '70173', unit: '1', objectNumber: '1' },
+      landlord: { ...named.landlord, phone: '1', email: 'v@example.org' },
+      tenants: [{ ...tenant, name: 'Anna', phone: '2', email: '', noEmail: true }],
+      meters: [{ ...meter, reading: '1' }],
+    };
+    expect(protocolIssues(noMail).some((issue) => issue.message.includes('E-Mail Mieter'))).toBe(false);
+  });
+
   it('nennt die fehlenden Unterschriften', () => {
     expect(missingSignatureLabel(1)).toBe('Noch 1 Unterschrift fehlt');
     expect(missingSignatureLabel(3)).toBe('Noch 3 Unterschriften fehlen');
@@ -323,8 +468,8 @@ describe('Versand & Aufbewahrung', () => {
       ...p,
       landlord: { ...p.landlord, email: 'verwaltung@example.org' },
       tenants: [
-        { name: 'A', phone: '', email: 'A@Example.org ', newAddress: '' },
-        { name: 'B', phone: '', email: 'kaputt', newAddress: '' },
+        { name: 'A', phone: '', email: 'A@Example.org ', noEmail: false, newAddress: '' },
+        { name: 'B', phone: '', email: 'kaputt', noEmail: false, newAddress: '' },
       ],
     };
     expect(mailRecipients(q, 'objekte@example.org')).toEqual([

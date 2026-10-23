@@ -7,6 +7,7 @@ import {
   missingSignatureCount,
   missingSignatureLabel,
   protocolIssues,
+  recommendedIssues,
   referencedPhotoIds,
   requiredSigners,
   type Signer,
@@ -76,7 +77,14 @@ export function FinishScreen({ id }: { id: string }) {
   const stamp = protocolStamp(p);
   const readyPdf = prepared?.stamp === stamp ? prepared : null;
   const issues = protocolIssues(p);
+  const hints = recommendedIssues(p);
   const signers = requiredSigners(p);
+  const issueHref = (issue: (typeof issues)[number]) => {
+    if (issue.roomId) return href({ name: 'room', id, roomId: issue.roomId });
+    if (issue.fieldId?.startsWith('field-meter-')) return href({ name: 'meters', id, focus: issue.fieldId });
+    if (issue.fieldId) return href({ name: 'basis', id, focus: issue.fieldId });
+    return href({ name: 'basis', id });
+  };
 
   const lock = () => {
     const res = startSigning(p);
@@ -154,11 +162,24 @@ export function FinishScreen({ id }: { id: string }) {
   const sendMail = () => {
     if (!readyPdf) return;
     const to = mailRecipients(p, APP_CONFIG.ccEmail);
+    const hint = p.tenants
+      .filter((tenant) => tenant.noEmail || !tenant.email.trim())
+      .map(
+        (tenant) =>
+          `Für ${tenant.name.trim() || 'den Mieter'} ist keine E-Mail hinterlegt – Adresse im Mailprogramm ergänzen.`,
+      )
+      .join(' ');
+    const copiedMsg = to.length
+      ? `Empfänger kopiert: ${to.join(', ')} – im Mail-Programm ins „An“-Feld einfügen.`
+      : '';
+    if (hint) showToast(hint);
     const copied = to.length ? navigator.clipboard?.writeText(to.join(', ')) : undefined;
     if (copied) {
       void copied.then(
-        () => showToast(`Empfänger kopiert: ${to.join(', ')} – im Mail-Programm ins „An“-Feld einfügen.`),
-        () => {},
+        () => showToast([copiedMsg, hint].filter(Boolean).join(' ')),
+        () => {
+          if (hint) showToast(hint);
+        },
       );
     }
     const text = `${readyPdf.name}${to.length ? `\nAn: ${to.join(', ')}` : ''}`;
@@ -191,12 +212,8 @@ export function FinishScreen({ id }: { id: string }) {
                 <b>Vor der Unterschrift noch offen:</b>
                 <ul className="issues">
                   {issues.map((i) => (
-                    <li key={i.message}>
-                      {i.roomId ? (
-                        <a href={href({ name: 'room', id, roomId: i.roomId })}>{i.message}</a>
-                      ) : (
-                        <a href={href({ name: 'basis', id })}>{i.message}</a>
-                      )}
+                    <li key={`${i.fieldId ?? i.roomId ?? ''}-${i.message}`}>
+                      <a href={issueHref(i)}>{i.message}</a>
                     </li>
                   ))}
                 </ul>
@@ -206,6 +223,18 @@ export function FinishScreen({ id }: { id: string }) {
                 ✓ Alles erfasst. Schreiben Sie den Inhalt fest und lassen Sie unterschreiben.
               </div>
             )}
+            {hints.length ? (
+              <details className="more">
+                <summary>Empfohlen, aber nicht nötig ({hints.length})</summary>
+                <ul className="issues">
+                  {hints.map((i) => (
+                    <li key={`${i.fieldId ?? i.roomId ?? ''}-${i.message}`}>
+                      <a href={issueHref(i)}>{i.message}</a>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            ) : null}
             <label className="field">
               <span>Allgemeine Anmerkungen (optional)</span>
               <textarea
